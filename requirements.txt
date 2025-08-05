@@ -1,0 +1,9 @@
+openai
+openai-agents
+python-dotenv
+sounddevice
+scipy
+numpy
+webrtcvad
+soundfile
+dia

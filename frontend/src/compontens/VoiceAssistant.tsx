@@ -1,241 +1,282 @@
-import React, { useRef, useState } from "react";
-import { Button, Typography, Box } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
+import React, {useRef, useState} from "react";
+import {Box, Button, Typography} from "@mui/material";
+import {makeStyles} from "tss-react/mui";
 import axios from "axios";
 
 const useStyles = makeStyles()(() => ({
-  root: {
-    height: "100vh",
-    width: "100vw",
-    background:
-      "rgba(255, 255, 255, 0.15)", // viel transparenter
-    backdropFilter: "blur(40px)", // mehr Blur
-    WebkitBackdropFilter: "blur(40px)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "3rem",
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    color: "#111",
-  },
-  glassBox: {
-    background: "rgba(255, 255, 255, 0.12)", // sehr durchsichtig
-    boxShadow:
-      "0 8px 32px 0 rgba(31, 38, 135, 0.12)", // zarter Schatten
-    backdropFilter: "blur(30px)", // sehr starkes Blur
-    WebkitBackdropFilter: "blur(30px)",
-    borderRadius: "32px",
-    border: "1px solid rgba(255, 255, 255, 0.25)", // dünner, heller Rand
-    padding: "3rem 4rem",
-    maxWidth: 700,
-    width: "90vw",
-    minHeight: 200,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  header: {
-    fontSize: "3.5rem",
-    fontWeight: "800",
-    marginBottom: "2.5rem",
-    userSelect: "none",
-    color: "#111",
-    textShadow: "0 0 8px rgba(255 255 255 / 0.6)", // leicht leuchtend
-  },
-  resultText: {
-    fontSize: "1.9rem",
-    fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 1.6,
-    whiteSpace: "pre-line",
-    color: "#222",
-    textShadow: "0 0 4px rgba(255 255 255 / 0.7)", // leichter Glow
-  },
-  coloredWord: {
-    fontWeight: "900",
-    padding: "0 8px",
-    borderRadius: "8px",
-    color: "white",
-    display: "inline-block",
-    userSelect: "text",
-    textShadow: "0 0 3px rgba(0,0,0,0.3)",
-  },
-  button: {
-    marginTop: "3rem",
-    padding: "1.2rem 4rem",
-    fontSize: "1.5rem",
-    fontWeight: "700",
-    borderRadius: "60px",
-    backgroundColor: "rgba(34, 34, 34, 0.7)",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-    userSelect: "none",
-    transition: "background-color 0.3s ease",
-    "&:hover": {
-      backgroundColor: "rgba(34, 34, 34, 0.9)",
+    root: {
+        height: "100vh",
+        width: "100vw",
+        background:
+            "linear-gradient(135deg, #FDEFF9 0%, #E2F0CB 50%, #FFC3A0 100%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        color: "#3A3A3A",
     },
-    "&:disabled": {
-      backgroundColor: "rgba(200, 200, 200, 0.4)",
-      cursor: "not-allowed",
-      color: "#888",
+    glassContainer: {
+        backdropFilter: "blur(12px)",
+        background: "rgba(255, 255, 255, 0.7)",
+        borderRadius: 20,
+        width: "90vw",
+        maxWidth: 700,
+        maxHeight: "80vh",
+        overflowY: "auto",
+        padding: "2rem",
+        boxShadow: "0 10px 30px rgba(255, 183, 130, 0.3)",
+        display: "flex",
+        flexDirection: "column",
     },
-  },
+    header: {
+        fontSize: "3rem",
+        fontWeight: 700,
+        marginBottom: "1.5rem",
+        textAlign: "center",
+        userSelect: "none",
+        color: "#FF6F61",
+    },
+    chat: {
+        flexGrow: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.2rem",
+        overflowY: "auto",
+        paddingRight: "0.5rem",
+    },
+    messageUser: {
+        alignSelf: "flex-end",
+        background: "#FFD9C0",
+        color: "#5A3E36",
+        padding: "0.8rem 1.2rem",
+        borderRadius: "20px 20px 0 20px",
+        maxWidth: "75%",
+        fontSize: "1.3rem",
+        lineHeight: 1.4,
+        userSelect: "text",
+        wordBreak: "break-word",
+        boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
+    },
+    messageAssistant: {
+        alignSelf: "flex-start",
+        background: "#D2F8D2",
+        color: "#2B4F2B",
+        padding: "0.8rem 1.2rem",
+        borderRadius: "20px 20px 20px 0",
+        maxWidth: "75%",
+        fontSize: "1.3rem",
+        lineHeight: 1.4,
+        userSelect: "text",
+        wordBreak: "break-word",
+        boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
+    },
+    systemMessage: {
+        alignSelf: "center",
+        color: "#7D7D7D",
+        fontStyle: "italic",
+        fontSize: "1rem",
+        marginBottom: "1rem",
+    },
+    button: {
+        marginTop: "1.8rem",
+        alignSelf: "center",
+        padding: "1rem 3rem",
+        fontSize: "1.5rem",
+        fontWeight: 600,
+        borderRadius: 50,
+        textTransform: "none",
+        boxShadow: "0 8px 24px rgba(255, 111, 97, 0.5)",
+        cursor: "pointer",
+        userSelect: "none",
+        backgroundColor: "#FF6F61",
+        color: "white",
+        "&:hover": {
+            backgroundColor: "#E55A4F",
+        },
+    },
+    pulse: {
+        display: "inline-block",
+        width: 14,
+        height: 14,
+        borderRadius: "50%",
+        marginLeft: 10,
+        backgroundColor: "#FF6F61",
+        animation: "pulse 2s infinite",
+        "@keyframes pulse": {
+            "0%": {transform: "scale(1)", opacity: 1},
+            "50%": {transform: "scale(1.5)", opacity: 0.6},
+            "100%": {transform: "scale(1)", opacity: 1},
+        },
+    },
 }));
 
-
-// Funktion, die Ampelfarben in Text erkennt und spannt
-const highlightTrafficColors = (text: string, classes: ReturnType<typeof useStyles>["classes"]) => {
-  // Wörter und Farben definieren
-  const colorsMap: { [key: string]: string } = {
-    rot: "#d32f2f",
-    rotlich: "#d32f2f",
-    rotlicht: "#d32f2f",
-    gelb: "#fbc02d",
-    gelblicht: "#fbc02d",
-    gelblicht: "#fbc02d",
-    grün: "#388e3c",
-    gruen: "#388e3c",
-    grünlicht: "#388e3c",
-    gruenlicht: "#388e3c",
-  };
-
-  // Text splitten in Wörter (inklusive Satzzeichen)
-  const words = text.split(/(\s+|\b)/);
-
-  return words.map((word, i) => {
-    const key = word.toLowerCase().replace(/[^a-zäöüß]/g, "");
-    if (colorsMap[key]) {
-      return (
-        <span
-          key={i}
-          className={classes.coloredWord}
-          style={{ backgroundColor: colorsMap[key] }}
-        >
-          {word}
-        </span>
-      );
-    }
-    return word;
-  });
+type Message = {
+    role: "user" | "assistant" | "system";
+    content: string;
 };
 
-export const VoiceAssistant = () => {
-  const { classes } = useStyles();
-  const [result, setResult] = useState<string | null>(null);
-  const [recording, setRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const silenceTimer = useRef<NodeJS.Timeout | null>(null);
-  const chunks = useRef<Blob[]>([]);
+export const ClosePulseAI = () => {
+    const {classes} = useStyles();
+    const [messages, setMessages] = useState<Message[]>([
+        {role: "system", content: "Sag mir etwas oder drücke Start."},
+    ]);
+    const [recording, setRecording] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const silenceTimer = useRef<NodeJS.Timeout | null>(null);
+    const chunks = useRef<Blob[]>([]);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
 
-  const startRecording = async () => {
-    if (recording) return;
+    const SILENCE_THRESHOLD = 10; // Lautstärke-Schwelle für Stille
+    const SILENCE_DURATION = 10000; // 10 Sekunden Stille = Aufnahme stoppt automatisch
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
-    chunks.current = [];
+    const startRecording = async () => {
+        if (recording) return;
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.current.push(e.data);
-    };
+        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        chunks.current = [];
 
-    mediaRecorder.onstart = () => {
-      setRecording(true);
-      setResult(null); // beim Start löschen
-    };
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunks.current.push(e.data);
+        };
 
-    mediaRecorder.onstop = async () => {
-      setRecording(false);
-      if (silenceTimer.current) {
-        clearTimeout(silenceTimer.current);
-        silenceTimer.current = null;
-      }
+        mediaRecorder.onstart = () => {
+            setRecording(true);
+        };
 
-      const blob = new Blob(chunks.current, { type: "audio/webm" });
-      const formData = new FormData();
-      formData.append("file", blob, "recording.wav");
+        mediaRecorder.onstop = async () => {
+            setRecording(false);
+            if (silenceTimer.current) {
+                clearTimeout(silenceTimer.current);
+                silenceTimer.current = null;
+            }
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+                analyserRef.current = null;
+            }
 
-      try {
-        const transcribeRes = await axios.post("http://localhost:8000/transcribe", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+            const blob = new Blob(chunks.current, {type: "audio/webm"});
+            const formData = new FormData();
+            formData.append("file", blob, "recording.wav");
 
-        const userText = transcribeRes.data.text;
-        if (!userText) {
-          setResult("Keine Sprache erkannt.");
-          return;
-        }
+            try {
+                const transcribeRes = await axios.post("http://localhost:8000/transcribe", formData, {
+                    headers: {"Content-Type": "multipart/form-data"},
+                });
 
-        // Anfrage an KI mit nur dem Usertext
-        const askRes = await axios.post("http://localhost:8000/ask", [{ role: "user", content: userText }]);
-        setResult(askRes.data.response);
-      } catch {
-        setResult("Fehler bei der Verbindung.");
-      }
-    };
+                const userText = transcribeRes.data.text;
+                if (!userText) return;
 
-    mediaRecorder.start(250);
+                const newUserMessage = {role: "user", content: userText};
 
-    const audioCtx = new AudioContext();
-    const micSource = audioCtx.createMediaStreamSource(stream);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
-    micSource.connect(analyser);
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                const askRes = await axios.post("http://localhost:8000/ask", [...messages.filter(m => m.role !== "system"), newUserMessage]);
+                const assistantText = askRes.data.response;
 
-    const SILENCE_THRESHOLD = 10;
-    const SILENCE_DELAY = 2000;
+                setMessages((prev) => [...prev, newUserMessage, {role: "assistant", content: assistantText}]);
+            } catch {
+                setMessages((prev) => [...prev, {role: "assistant", content: "Fehler bei der Verbindung."}]);
+            }
+        };
 
-    const checkSilence = () => {
-      analyser.getByteFrequencyData(dataArray);
-      const volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        mediaRecorder.start(250);
 
-      if (volume < SILENCE_THRESHOLD) {
-        if (!silenceTimer.current) {
-          silenceTimer.current = setTimeout(() => {
-            mediaRecorder.stop();
-            stream.getTracks().forEach((track) => track.stop());
-            audioCtx.close();
-          }, SILENCE_DELAY);
-        }
-      } else {
-        if (silenceTimer.current) {
-          clearTimeout(silenceTimer.current);
-          silenceTimer.current = null;
-        }
-      }
+        audioContextRef.current = new AudioContext();
+        const audioCtx = audioContextRef.current;
+        const micSource = audioCtx.createMediaStreamSource(stream);
+        analyserRef.current = audioCtx.createAnalyser();
+        analyserRef.current.fftSize = 512;
+        micSource.connect(analyserRef.current);
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
 
-      if (recording) {
+        const checkSilence = () => {
+            analyserRef.current!.getByteFrequencyData(dataArray);
+            const avgVolume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+            if (avgVolume < SILENCE_THRESHOLD) {
+                if (!silenceTimer.current) {
+                    silenceTimer.current = setTimeout(() => {
+                        mediaRecorder.stop();
+                        stream.getTracks().forEach((track) => track.stop());
+                    }, SILENCE_DURATION);
+                }
+            } else {
+                if (silenceTimer.current) {
+                    clearTimeout(silenceTimer.current);
+                    silenceTimer.current = null;
+                }
+            }
+            if (recording) {
+                requestAnimationFrame(checkSilence);
+            }
+        };
+
         requestAnimationFrame(checkSilence);
-      }
     };
 
-    requestAnimationFrame(checkSilence);
-  };
+    const stopRecording = () => {
+        if (!recording) return;
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+        }
+    };
 
-  return (
-    <Box className={classes.root}>
-      <Box className={classes.glassBox}>
-        <Typography className={classes.header}>🧠 Voice Assistant</Typography>
+    const latestUserMessage = [...messages].reverse().find(m => m.role === "user");
+    const latestAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+    const systemMessages = messages.filter(m => m.role === "system");
 
-        <Typography className={classes.resultText}>
-          {result ? highlightTrafficColors(result, classes) : "Bitte sprechen und warten..."}
-        </Typography>
 
-        <button
-          className={classes.button}
-          onClick={startRecording}
-          disabled={recording}
-          aria-label="Start Aufnahme"
-        >
-          {recording ? "Sprich..." : "Start"}
-        </button>
-      </Box>
-    </Box>
-  );
+    return (
+        <Box className={classes.root}>
+            <Box className={classes.glassContainer}>
+                <Typography className={classes.header} component="h1">
+                    closepulse.ai
+                    {recording && <span className={classes.pulse}/>}
+                </Typography>
+
+                <Box className={classes.chat}>
+                    {systemMessages.map((msg, i) => (
+                        <Typography key={"sys" + i} className={classes.systemMessage}>
+                            {msg.content}
+                        </Typography>
+                    ))}
+
+                    {latestUserMessage && (
+                        <Typography className={classes.messageUser} style={{whiteSpace: "pre-line"}}>
+                            <strong>User: </strong>
+                            {latestUserMessage.content}
+                        </Typography>
+                    )}
+
+                    {latestAssistantMessage && (
+                        <Typography className={classes.messageAssistant} style={{whiteSpace: "pre-line"}}>
+                            <strong>Assistant: </strong>
+                            {latestAssistantMessage.content}
+                        </Typography>
+                    )}
+                </Box>
+
+                {!recording ? (
+                    <Button className={classes.button} onClick={startRecording}>
+                        Start Aufnahme
+                    </Button>
+                ) : (
+                    <Button
+                        className={classes.button}
+                        onClick={stopRecording}
+                        style={{backgroundColor: "#E55A4F"}}
+                    >
+                        Aufnahme stoppen
+                    </Button>
+                )}
+            </Box>
+        </Box>
+    );
 };
 
-export default VoiceAssistant;
+export default ClosePulseAI;

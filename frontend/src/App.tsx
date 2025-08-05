@@ -1,9 +1,9 @@
-import VoiceAssistant from "./compontens/VoiceAssistant.tsx";
+import {ClosePulseAI} from "./compontens/VoiceAssistant.tsx";
 
 function App() {
 
   return (
-    <VoiceAssistant/>
+    <ClosePulseAI/>
   )
 }
 

@@ -7,117 +7,124 @@ const useStyles = makeStyles()(() => ({
   root: {
     height: "100vh",
     width: "100vw",
-    background: "linear-gradient(135deg, #4b6cb7 0%, #182848 100%)",
+    background:
+      "rgba(255, 255, 255, 0.15)", // viel transparenter
+    backdropFilter: "blur(40px)", // mehr Blur
+    WebkitBackdropFilter: "blur(40px)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    padding: "2rem",
+    padding: "3rem",
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    color: "white",
+    color: "#111",
   },
-  glassContainer: {
-    backdropFilter: "blur(20px)",
-    background: "rgba(255, 255, 255, 0.1)",
-    borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.3)",
-    width: "90vw",
+  glassBox: {
+    background: "rgba(255, 255, 255, 0.12)", // sehr durchsichtig
+    boxShadow:
+      "0 8px 32px 0 rgba(31, 38, 135, 0.12)", // zarter Schatten
+    backdropFilter: "blur(30px)", // sehr starkes Blur
+    WebkitBackdropFilter: "blur(30px)",
+    borderRadius: "32px",
+    border: "1px solid rgba(255, 255, 255, 0.25)", // dünner, heller Rand
+    padding: "3rem 4rem",
     maxWidth: 700,
-    maxHeight: "80vh",
-    overflowY: "auto",
-    padding: "2rem",
-    boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+    width: "90vw",
+    minHeight: 200,
     display: "flex",
     flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
   },
   header: {
-    fontSize: "3rem",
-    fontWeight: "700",
-    marginBottom: "1.5rem",
-    textAlign: "center",
+    fontSize: "3.5rem",
+    fontWeight: "800",
+    marginBottom: "2.5rem",
     userSelect: "none",
-    textShadow: "0 2px 10px rgba(0,0,0,0.4)",
+    color: "#111",
+    textShadow: "0 0 8px rgba(255 255 255 / 0.6)", // leicht leuchtend
   },
-  chat: {
-    flexGrow: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: "1.5rem",
-    overflowY: "auto",
-    paddingRight: "0.5rem",
-  },
-  messageUser: {
-    alignSelf: "flex-end",
-    background: "rgba(255, 255, 255, 0.2)",
-    color: "#e0e0e0",
-    padding: "0.8rem 1.2rem",
-    borderRadius: "20px 20px 0 20px",
-    maxWidth: "75%",
-    fontSize: "1.3rem",
-    lineHeight: 1.4,
-    userSelect: "text",
-    wordBreak: "break-word",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-  },
-  messageAssistant: {
-    alignSelf: "flex-start",
-    background: "rgba(255, 255, 255, 0.35)",
+  resultText: {
+    fontSize: "1.9rem",
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 1.6,
+    whiteSpace: "pre-line",
     color: "#222",
-    padding: "0.8rem 1.2rem",
-    borderRadius: "20px 20px 20px 0",
-    maxWidth: "75%",
-    fontSize: "1.3rem",
-    lineHeight: 1.4,
-    userSelect: "text",
-    wordBreak: "break-word",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+    textShadow: "0 0 4px rgba(255 255 255 / 0.7)", // leichter Glow
   },
-  systemMessage: {
-    alignSelf: "center",
-    color: "rgba(255,255,255,0.7)",
-    fontStyle: "italic",
-    fontSize: "1rem",
-    marginBottom: "1rem",
+  coloredWord: {
+    fontWeight: "900",
+    padding: "0 8px",
+    borderRadius: "8px",
+    color: "white",
+    display: "inline-block",
+    userSelect: "text",
+    textShadow: "0 0 3px rgba(0,0,0,0.3)",
   },
   button: {
-    marginTop: "1.8rem",
-    alignSelf: "center",
-    padding: "1rem 3rem",
+    marginTop: "3rem",
+    padding: "1.2rem 4rem",
     fontSize: "1.5rem",
-    fontWeight: "600",
-    borderRadius: "50px",
-    textTransform: "none",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-    transition: "background-color 0.3s ease",
+    fontWeight: "700",
+    borderRadius: "60px",
+    backgroundColor: "rgba(34, 34, 34, 0.7)",
+    color: "white",
+    border: "none",
     cursor: "pointer",
     userSelect: "none",
-  },
-  buttonPrimary: {
-    backgroundColor: "#4b6cb7",
-    color: "white",
+    transition: "background-color 0.3s ease",
     "&:hover": {
-      backgroundColor: "#3a54a1",
+      backgroundColor: "rgba(34, 34, 34, 0.9)",
     },
-  },
-  buttonError: {
-    backgroundColor: "#d32f2f",
-    color: "white",
-    "&:hover": {
-      backgroundColor: "#9a2424",
+    "&:disabled": {
+      backgroundColor: "rgba(200, 200, 200, 0.4)",
+      cursor: "not-allowed",
+      color: "#888",
     },
   },
 }));
 
-type Message = {
-  role: "user" | "assistant" | "system";
-  content: string;
+
+// Funktion, die Ampelfarben in Text erkennt und spannt
+const highlightTrafficColors = (text: string, classes: ReturnType<typeof useStyles>["classes"]) => {
+  // Wörter und Farben definieren
+  const colorsMap: { [key: string]: string } = {
+    rot: "#d32f2f",
+    rotlich: "#d32f2f",
+    rotlicht: "#d32f2f",
+    gelb: "#fbc02d",
+    gelblicht: "#fbc02d",
+    gelblicht: "#fbc02d",
+    grün: "#388e3c",
+    gruen: "#388e3c",
+    grünlicht: "#388e3c",
+    gruenlicht: "#388e3c",
+  };
+
+  // Text splitten in Wörter (inklusive Satzzeichen)
+  const words = text.split(/(\s+|\b)/);
+
+  return words.map((word, i) => {
+    const key = word.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (colorsMap[key]) {
+      return (
+        <span
+          key={i}
+          className={classes.coloredWord}
+          style={{ backgroundColor: colorsMap[key] }}
+        >
+          {word}
+        </span>
+      );
+    }
+    return word;
+  });
 };
 
 export const VoiceAssistant = () => {
-  const { classes, cx } = useStyles();
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "system", content: "Starte Konversation" },
-  ]);
+  const { classes } = useStyles();
+  const [result, setResult] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const silenceTimer = useRef<NodeJS.Timeout | null>(null);
@@ -137,6 +144,7 @@ export const VoiceAssistant = () => {
 
     mediaRecorder.onstart = () => {
       setRecording(true);
+      setResult(null); // beim Start löschen
     };
 
     mediaRecorder.onstop = async () => {
@@ -156,23 +164,16 @@ export const VoiceAssistant = () => {
         });
 
         const userText = transcribeRes.data.text;
-        if (!userText) return;
+        if (!userText) {
+          setResult("Keine Sprache erkannt.");
+          return;
+        }
 
-        const updated = [...messages, { role: "user", content: userText }];
-        setMessages(updated);
-
-        const askRes = await axios.post("http://localhost:8000/ask", updated);
-        const assistantText = askRes.data.response;
-
-        setMessages([
-          ...updated,
-          {
-            role: "assistant",
-            content: assistantText,
-          },
-        ]);
+        // Anfrage an KI mit nur dem Usertext
+        const askRes = await axios.post("http://localhost:8000/ask", [{ role: "user", content: userText }]);
+        setResult(askRes.data.response);
       } catch {
-        setMessages((m) => [...m, { role: "assistant", content: "Fehler bei der Verbindung." }]);
+        setResult("Fehler bei der Verbindung.");
       }
     };
 
@@ -217,44 +218,21 @@ export const VoiceAssistant = () => {
 
   return (
     <Box className={classes.root}>
-      <Box className={classes.glassContainer}>
-        <Typography className={classes.header} component="h1">
-          🧠 Voice Assistant
+      <Box className={classes.glassBox}>
+        <Typography className={classes.header}>🧠 Voice Assistant</Typography>
+
+        <Typography className={classes.resultText}>
+          {result ? highlightTrafficColors(result, classes) : "Bitte sprechen und warten..."}
         </Typography>
 
-        <Box className={classes.chat}>
-          {messages.map((msg, index) => (
-            <Typography
-              key={index}
-              className={
-                msg.role === "user"
-                  ? classes.messageUser
-                  : msg.role === "assistant"
-                  ? classes.messageAssistant
-                  : classes.systemMessage
-              }
-              style={{ whiteSpace: "pre-line" }}
-            >
-              {msg.role !== "system" && (
-                <strong style={{ textTransform: "capitalize", marginRight: 8 }}>
-                  {msg.role}:
-                </strong>
-              )}
-              {msg.content}
-            </Typography>
-          ))}
-        </Box>
-
-        <Button
-          className={cx(
-            classes.button,
-            recording ? classes.buttonError : classes.buttonPrimary
-          )}
+        <button
+          className={classes.button}
           onClick={startRecording}
           disabled={recording}
+          aria-label="Start Aufnahme"
         >
           {recording ? "Sprich..." : "Start"}
-        </Button>
+        </button>
       </Box>
     </Box>
   );

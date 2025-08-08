@@ -2,8 +2,8 @@ import React, {useRef, useState} from "react";
 import {Box, Button, Typography} from "@mui/material";
 import {makeStyles} from "tss-react/mui";
 import axios from "axios";
-import {Agent, run} from "@openai/agents";
-import {AmpelDisplay} from "./AmpelDisplay"; // falls in eigener Datei
+import {checkAmpelStatus} from "../agents/trafficAgent.ts";
+import {AmpelSingleLight} from "./AmpelDisplay.tsx";
 
 const useStyles = makeStyles()(() => ({
     root: {
@@ -15,6 +15,7 @@ const useStyles = makeStyles()(() => ({
         background: "#fafafa",
         padding: "2rem",
         fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+        // position: "relative", // NICHT nötig hier
     },
     container: {
         background: "#fff",
@@ -28,6 +29,13 @@ const useStyles = makeStyles()(() => ({
         alignItems: "center",
         gap: "1.5rem",
         textAlign: "center",
+        position: "relative",  // hier position relativ
+    },
+    ampelPosition: {
+        position: "absolute",
+        top: "1rem",
+        right: "1rem",
+        zIndex: 10,
     },
     messageBox: {
         width: "100%",
@@ -50,37 +58,12 @@ const useStyles = makeStyles()(() => ({
     },
 }));
 
-const ampelAgent = new Agent({
-    name: "AmpelChecker",
-    instructions: `Du analysierst Antworten von einem Assistenten und bewertest sie mit einer Ampel:
-- Grün: alles okay, keine Probleme
-- Gelb: teilweise fragwürdig oder unklar
-- Rot: problematisch, falsch, gefährlich oder unethisch
-
-Gib das Ergebnis als JSON im Format:
-{
-  "status": "green" | "yellow" | "red",
-  "reason": "kurze Begründung"
-}`,
-});
-
-const checkAmpelStatus = async (text: string) => {
-    const result = await run(ampelAgent, text);
-    try {
-        return JSON.parse(result.finalOutput);
-    } catch (e) {
-        console.error("Fehler beim Parsen:", result.finalOutput);
-        return {status: "yellow", reason: "Konnte nicht ausgewertet werden"};
-    }
-};
-
 export const ClosePulseAI: React.FC = () => {
     const {classes} = useStyles();
     const [recording, setRecording] = useState(false);
     const [userText, setUserText] = useState("");
     const [assistantText, setAssistantText] = useState("");
     const [ampelStatus, setAmpelStatus] = useState<"green" | "yellow" | "red" | null>(null);
-    const [ampelReason, setAmpelReason] = useState<string>("");
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
 
@@ -125,9 +108,8 @@ export const ClosePulseAI: React.FC = () => {
             const reply = ask.data.response;
             setAssistantText(reply);
 
-            const {status, reason} = await checkAmpelStatus(reply);
+            const {status} = await checkAmpelStatus(reply);
             setAmpelStatus(status);
-            setAmpelReason(reason);
         } catch (err) {
             console.error("API-Fehler:", err);
         }
@@ -150,7 +132,7 @@ export const ClosePulseAI: React.FC = () => {
                     </Box>
                 )}
 
-                {ampelStatus && <AmpelDisplay status={ampelStatus} reason={ampelReason}/>}
+                {ampelStatus && <AmpelSingleLight status={ampelStatus}/>}
 
                 {!recording ? (
                     <Button className={classes.button} onClick={startRecording}>

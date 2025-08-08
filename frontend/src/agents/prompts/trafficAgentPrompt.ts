@@ -8,7 +8,6 @@ AUFGABE:
 
 {
   "status": "green" | "yellow" | "red",
-  "reason": "Kurze, klare Begründung für die Bewertung."
 }
 
 KRITERIEN:
@@ -24,7 +23,6 @@ Input:
 Output:
 {
   "status": "red",
-  "reason": "Unethischer Rat – gesundheitsschädlich und gefährlich."
 }
 
 Input:
@@ -33,7 +31,6 @@ Input:
 Output:
 {
   "status": "green",
-  "reason": "Fachlich korrekt und hilfreich für den Einstieg."
 }
 
 Input:
@@ -42,7 +39,6 @@ Input:
 Output:
 {
   "status": "yellow",
-  "reason": "Die Antwort ist zu vage und ohne konkreten Informationswert."
 }
 
 WICHTIG:

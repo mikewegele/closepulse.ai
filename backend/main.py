@@ -1,14 +1,15 @@
 # backend/main.py
+import os
+from datetime import date
+from io import BytesIO
+
+import openai
+from agents import Runner
+from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from agents import Runner
-from closepulse_agents import main_agent
-import openai
-import os
-from dotenv import load_dotenv
-from datetime import date
-import scipy.io.wavfile
-from io import BytesIO
+
+from closepulse_agents import main_agent, traffic_light_agent
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -24,6 +25,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
@@ -45,3 +47,9 @@ async def ask_agent(messages: list[dict]):
     result = await runner.run(main_agent, messages)
     return {"response": result.final_output}
 
+
+@app.post("/trafficLight")
+async def traffic_light(messages: list[dict]):
+    messages.append({"role": "system", "content": f"Heute ist der {date.today().isoformat()}"})
+    result = await runner.run(traffic_light_agent, messages)
+    return {"response": result.final_output}

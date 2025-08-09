@@ -1,8 +1,7 @@
-import React, {useRef, useState} from "react";
+import React, {useCallback, useRef, useState} from "react";
 import {Box, Button, Typography} from "@mui/material";
 import {makeStyles} from "tss-react/mui";
 import axios from "axios";
-import {checkAmpelStatus} from "../agents/trafficAgent.ts";
 import {AmpelSingleLight} from "./AmpelDisplay.tsx";
 
 const useStyles = makeStyles()(() => ({
@@ -58,16 +57,63 @@ const useStyles = makeStyles()(() => ({
     },
 }));
 
-export const ClosePulseAI: React.FC = () => {
+
+const ClosePulseAI: React.FC = () => {
     const {classes} = useStyles();
     const [recording, setRecording] = useState(false);
     const [userText, setUserText] = useState("");
     const [assistantText, setAssistantText] = useState("");
     const [ampelStatus, setAmpelStatus] = useState<"green" | "yellow" | "red" | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const [fullTranscript, setFullTranscript] = useState("");
     const chunksRef = useRef<Blob[]>([]);
 
-    const startRecording = async () => {
+    const fetchTextFromAPI = useCallback(async (url: string, data: any) => {
+        const res = await axios.post(url, data);
+        return res.data;
+    }, []);
+
+    const processResponse = useCallback(
+        async (fullText: string) => {
+            console.log(fullText)
+            const askData = await fetchTextFromAPI("http://localhost:8000/ask", [
+                {role: "user", content: fullText},
+            ]);
+            setAssistantText(askData.response);
+
+            const trafficLightData = await fetchTextFromAPI("http://localhost:8000/trafficLight", [
+                {role: "user", content: fullText},
+            ]);
+            setAmpelStatus(trafficLightData.response);
+
+            return askData.response;
+        },
+        [fetchTextFromAPI]
+    );
+
+    const handleUpload = useCallback(async () => {
+        const blob = new Blob(chunksRef.current, {type: "audio/webm"});
+        const formData = new FormData();
+        formData.append("file", blob, "recording.webm");
+
+        try {
+            const transcribeData = await fetchTextFromAPI("http://localhost:8000/transcribe", formData);
+            const newUserText = transcribeData.text;
+            if (!newUserText) return;
+
+            const updatedTranscript = fullTranscript + `User: ${newUserText}\n`;
+            const assistantResponse = await processResponse(updatedTranscript);
+
+            setFullTranscript(updatedTranscript + `Assistant: ${assistantResponse}\n`);
+            setUserText(newUserText);
+            setAssistantText(assistantResponse);
+        } catch (err) {
+            console.error("API-Fehler:", err);
+        }
+    }, [fetchTextFromAPI, processResponse, fullTranscript]);
+
+
+    const startRecording = useCallback(async () => {
         const stream = await navigator.mediaDevices.getUserMedia({audio: true});
         const recorder = new MediaRecorder(stream);
         mediaRecorderRef.current = recorder;
@@ -77,43 +123,20 @@ export const ClosePulseAI: React.FC = () => {
             if (e.data.size > 0) chunksRef.current.push(e.data);
         };
 
-        recorder.onstop = handleUpload;
+        recorder.onstop = () => {
+            handleUpload();
+        };
         recorder.start();
         setRecording(true);
-    };
+    }, [handleUpload]);
 
-    const stopRecording = () => {
+    const stopRecording = useCallback(() => {
         if (mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
             mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
             setRecording(false);
         }
-    };
-
-    const handleUpload = async () => {
-        const blob = new Blob(chunksRef.current, {type: "audio/webm"});
-        const formData = new FormData();
-        formData.append("file", blob, "recording.webm");
-
-        try {
-            const transcribe = await axios.post("http://localhost:8000/transcribe", formData, {
-                headers: {"Content-Type": "multipart/form-data"},
-            });
-            const text = transcribe.data.text;
-            if (!text) return;
-
-            setUserText(text);
-
-            const ask = await axios.post("http://localhost:8000/ask", [{role: "user", content: text}]);
-            const reply = ask.data.response;
-            setAssistantText(reply);
-
-            const {status} = await checkAmpelStatus(reply);
-            setAmpelStatus(status);
-        } catch (err) {
-            console.error("API-Fehler:", err);
-        }
-    };
+    }, []);
 
     return (
         <Box className={classes.root}>

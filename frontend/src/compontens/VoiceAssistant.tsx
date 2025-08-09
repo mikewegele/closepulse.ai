@@ -1,8 +1,9 @@
-import React, {useCallback, useRef, useState} from "react";
+import React, {useCallback, useState} from "react";
 import {Box, Button, Typography} from "@mui/material";
 import {makeStyles} from "tss-react/mui";
 import axios from "axios";
 import {AmpelSingleLight} from "./AmpelDisplay.tsx";
+import {useLocalMic, useWebRTCAudio} from "../util/audioAdapters.ts";
 
 const useStyles = makeStyles()(() => ({
     root: {
@@ -58,15 +59,17 @@ const useStyles = makeStyles()(() => ({
 }));
 
 
-const ClosePulseAI: React.FC = () => {
+const adapters = {
+    localMic: useLocalMic,
+    webRTC: useWebRTCAudio,
+};
+
+const ClosePulseAI: React.FC<{ inputType?: keyof typeof adapters }> = ({inputType = "localMic"}) => {
     const {classes} = useStyles();
-    const [recording, setRecording] = useState(false);
     const [userText, setUserText] = useState("");
     const [assistantText, setAssistantText] = useState("");
     const [ampelStatus, setAmpelStatus] = useState<"green" | "yellow" | "red" | null>(null);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const [fullTranscript, setFullTranscript] = useState("");
-    const chunksRef = useRef<Blob[]>([]);
 
     const fetchTextFromAPI = useCallback(async (url: string, data: any) => {
         const res = await axios.post(url, data);
@@ -75,15 +78,13 @@ const ClosePulseAI: React.FC = () => {
 
     const processResponse = useCallback(
         async (fullText: string) => {
-            console.log(fullText)
-            const askData = await fetchTextFromAPI("http://localhost:8000/ask", [
-                {role: "user", content: fullText},
-            ]);
+            const askData = await fetchTextFromAPI("http://localhost:8000/ask", [{role: "user", content: fullText}]);
             setAssistantText(askData.response);
 
-            const trafficLightData = await fetchTextFromAPI("http://localhost:8000/trafficLight", [
-                {role: "user", content: fullText},
-            ]);
+            const trafficLightData = await fetchTextFromAPI("http://localhost:8000/trafficLight", [{
+                role: "user",
+                content: fullText
+            }]);
             setAmpelStatus(trafficLightData.response);
 
             return askData.response;
@@ -91,52 +92,31 @@ const ClosePulseAI: React.FC = () => {
         [fetchTextFromAPI]
     );
 
-    const handleUpload = useCallback(async () => {
-        const blob = new Blob(chunksRef.current, {type: "audio/webm"});
-        const formData = new FormData();
-        formData.append("file", blob, "recording.webm");
+    const onAudioStop = useCallback(
+        async (blob: Blob) => {
+            const formData = new FormData();
+            formData.append("file", blob, "recording.webm");
 
-        try {
-            const transcribeData = await fetchTextFromAPI("http://localhost:8000/transcribe", formData);
-            const newUserText = transcribeData.text;
-            if (!newUserText) return;
+            try {
+                const transcribeData = await fetchTextFromAPI("http://localhost:8000/transcribe", formData);
+                const newUserText = transcribeData.text;
+                if (!newUserText) return;
 
-            const updatedTranscript = fullTranscript + `User: ${newUserText}\n`;
-            const assistantResponse = await processResponse(updatedTranscript);
+                const updatedTranscript = fullTranscript + `User: ${newUserText}\n`;
+                const assistantResponse = await processResponse(updatedTranscript);
 
-            setFullTranscript(updatedTranscript + `Assistant: ${assistantResponse}\n`);
-            setUserText(newUserText);
-            setAssistantText(assistantResponse);
-        } catch (err) {
-            console.error("API-Fehler:", err);
-        }
-    }, [fetchTextFromAPI, processResponse, fullTranscript]);
+                setFullTranscript(updatedTranscript + `Assistant: ${assistantResponse}\n`);
+                setUserText(newUserText);
+                setAssistantText(assistantResponse);
+            } catch (err) {
+                console.error("API-Fehler:", err);
+            }
+        },
+        [fetchTextFromAPI, fullTranscript, processResponse]
+    );
 
-
-    const startRecording = useCallback(async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-        const recorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = recorder;
-        chunksRef.current = [];
-
-        recorder.ondataavailable = (e) => {
-            if (e.data.size > 0) chunksRef.current.push(e.data);
-        };
-
-        recorder.onstop = () => {
-            handleUpload();
-        };
-        recorder.start();
-        setRecording(true);
-    }, [handleUpload]);
-
-    const stopRecording = useCallback(() => {
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
-            setRecording(false);
-        }
-    }, []);
+    // Hook anhand inputType auswählen und aufrufen
+    const {recording, start, stop} = adapters[inputType](onAudioStop);
 
     return (
         <Box className={classes.root}>
@@ -158,11 +138,11 @@ const ClosePulseAI: React.FC = () => {
                 {ampelStatus && <AmpelSingleLight status={ampelStatus}/>}
 
                 {!recording ? (
-                    <Button className={classes.button} onClick={startRecording}>
+                    <Button className={classes.button} onClick={start}>
                         Aufnahme starten
                     </Button>
                 ) : (
-                    <Button className={classes.button} onClick={stopRecording}>
+                    <Button className={classes.button} onClick={stop}>
                         Aufnahme stoppen
                     </Button>
                 )}

@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from "react";
+import React, {useCallback, useEffect, useState} from "react";
 import {Box, Button, Typography} from "@mui/material";
 import {makeStyles} from "tss-react/mui";
 import axios from "axios";
@@ -64,12 +64,29 @@ const adapters = {
     webRTC: useWebRTCAudio,
 };
 
-const ClosePulseAI: React.FC<{ inputType?: keyof typeof adapters }> = ({inputType = "localMic"}) => {
+const ClosePulseAI: React.FC = () => {
     const {classes} = useStyles();
     const [userText, setUserText] = useState("");
     const [assistantText, setAssistantText] = useState("");
     const [ampelStatus, setAmpelStatus] = useState<"green" | "yellow" | "red" | null>(null);
     const [fullTranscript, setFullTranscript] = useState("");
+    const [inputType, setInputType] = useState<keyof typeof adapters>("localMic");
+
+    useEffect(() => {
+        const savedConfig = localStorage.getItem("voiceAssistantConfig");
+        if (savedConfig) {
+            try {
+                const config = JSON.parse(savedConfig);
+                if (config.mode === "webrtc") {
+                    setInputType("webRTC");
+                } else {
+                    setInputType("localMic");
+                }
+            } catch {
+                setInputType("localMic");
+            }
+        }
+    }, []);
 
     const fetchTextFromAPI = useCallback(async (url: string, data: any) => {
         const res = await axios.post(url, data);
@@ -115,13 +132,16 @@ const ClosePulseAI: React.FC<{ inputType?: keyof typeof adapters }> = ({inputTyp
         [fetchTextFromAPI, fullTranscript, processResponse]
     );
 
-    // Hook anhand inputType auswählen und aufrufen
     const {recording, start, stop} = adapters[inputType](onAudioStop);
 
     return (
         <Box className={classes.root}>
             <Box className={classes.container}>
                 <Typography variant="h4">closepulse.ai</Typography>
+
+                <Typography variant="body2" sx={{mb: 2}}>
+                    Eingabemodus: <strong>{inputType === "localMic" ? "Lokales Mikrofon" : "WebRTC"}</strong>
+                </Typography>
 
                 {userText && (
                     <Box className={classes.messageBox}>

@@ -10,7 +10,6 @@ const useStyles = makeStyles()(() => ({
         alignItems: "center",
         justifyContent: "center",
         background: "#fafafa",
-        padding: "2rem",
         fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
     },
     container: {

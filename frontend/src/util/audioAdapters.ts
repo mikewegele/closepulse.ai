@@ -45,6 +45,7 @@ export function useWebRTCAudio(onStopCallback: (audioBlob: Blob) => void) {
 
     useEffect(() => {
         wsRef.current = new WebSocket("wss://your-signaling-server.example.com");
+
         wsRef.current.onmessage = async (msg) => {
             const data = JSON.parse(msg.data);
             if (!pcRef.current) return;
@@ -61,12 +62,32 @@ export function useWebRTCAudio(onStopCallback: (audioBlob: Blob) => void) {
             }
         };
 
+        wsRef.current.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+
         return () => {
             wsRef.current?.close();
+            wsRef.current = null;
+
+            if (pcRef.current) {
+                pcRef.current.close();
+                pcRef.current = null;
+            }
+
+            if (localStreamRef.current) {
+                localStreamRef.current.getTracks().forEach((t) => t.stop());
+                localStreamRef.current = null;
+            }
         };
     }, []);
 
     const start = useCallback(async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            console.error("getUserMedia not supported");
+            return;
+        }
+
         const pc = new RTCPeerConnection({
             iceServers: [{urls: "stun:stun.l.google.com:19302"}],
         });
@@ -93,8 +114,11 @@ export function useWebRTCAudio(onStopCallback: (audioBlob: Blob) => void) {
         recorder.onstop = () => {
             const blob = new Blob(chunksRef.current, {type: "audio/webm"});
             onStopCallback(blob);
-            pc.close();
-            pcRef.current = null;
+            setRecording(false);
+            if (pcRef.current) {
+                pcRef.current.close();
+                pcRef.current = null;
+            }
         };
 
         const offer = await pc.createOffer();
@@ -106,13 +130,13 @@ export function useWebRTCAudio(onStopCallback: (audioBlob: Blob) => void) {
     }, [onStopCallback]);
 
     const stop = useCallback(() => {
-        if (mediaRecorderRef.current) {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
             mediaRecorderRef.current.stop();
         }
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach((t) => t.stop());
+            localStreamRef.current = null;
         }
-        setRecording(false);
     }, []);
 
     return {recording, start, stop};

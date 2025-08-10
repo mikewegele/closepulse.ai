@@ -13,9 +13,7 @@ const useStyles = makeStyles()(() => ({
         alignItems: "center",
         justifyContent: "center",
         background: "#fafafa",
-        padding: "2rem",
         fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
-        // position: "relative", // NICHT nötig hier
     },
     container: {
         background: "#fff",
@@ -29,13 +27,7 @@ const useStyles = makeStyles()(() => ({
         alignItems: "center",
         gap: "1.5rem",
         textAlign: "center",
-        position: "relative",  // hier position relativ
-    },
-    ampelPosition: {
-        position: "absolute",
-        top: "1rem",
-        right: "1rem",
-        zIndex: 10,
+        position: "relative",
     },
     messageBox: {
         width: "100%",
@@ -58,19 +50,13 @@ const useStyles = makeStyles()(() => ({
     },
 }));
 
-
-const adapters = {
-    localMic: useLocalMic,
-    webRTC: useWebRTCAudio,
-};
-
 const ClosePulseAI: React.FC = () => {
     const {classes} = useStyles();
     const [userText, setUserText] = useState("");
     const [assistantText, setAssistantText] = useState("");
     const [ampelStatus, setAmpelStatus] = useState<"green" | "yellow" | "red" | null>(null);
     const [fullTranscript, setFullTranscript] = useState("");
-    const [inputType, setInputType] = useState<keyof typeof adapters>("localMic");
+    const [inputType, setInputType] = useState<"localMic" | "webRTC">("localMic");
 
     useEffect(() => {
         const savedConfig = localStorage.getItem("voiceAssistantConfig");
@@ -98,10 +84,12 @@ const ClosePulseAI: React.FC = () => {
             const askData = await fetchTextFromAPI("http://localhost:8000/ask", [{role: "user", content: fullText}]);
             setAssistantText(askData.response);
 
-            const trafficLightData = await fetchTextFromAPI("http://localhost:8000/trafficLight", [{
-                role: "user",
-                content: fullText
-            }]);
+            const trafficLightData = await fetchTextFromAPI("http://localhost:8000/trafficLight", [
+                {
+                    role: "user",
+                    content: fullText,
+                },
+            ]);
             setAmpelStatus(trafficLightData.response);
 
             return askData.response;
@@ -132,7 +120,12 @@ const ClosePulseAI: React.FC = () => {
         [fetchTextFromAPI, fullTranscript, processResponse]
     );
 
-    const {recording, start, stop} = adapters[inputType](onAudioStop);
+    // Hooks **immer** aufrufen – nicht dynamisch!
+    const localMicAdapter = useLocalMic(onAudioStop);
+    const webRTCAdapter = useWebRTCAudio(onAudioStop);
+
+    // Dann den richtigen Adapter auswählen
+    const {recording, start, stop} = inputType === "localMic" ? localMicAdapter : webRTCAdapter;
 
     return (
         <Box className={classes.root}>

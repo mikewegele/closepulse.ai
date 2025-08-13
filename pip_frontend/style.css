@@ -21,11 +21,32 @@ html, body {
     width: 96px;
     height: 96px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.75); /* noch weißer */
-    color: #000;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6));
     backdrop-filter: blur(14px) saturate(160%);
     border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 0 24px rgba(0, 0, 0, .2);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Optional: leichte Farbbewegung im Kreis */
+.dot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(0, 200, 255, 0.4), rgba(255, 0, 200, 0.4), rgba(0, 200, 255, 0.4));
+    animation: siriGradient 4s linear infinite;
+    mix-blend-mode: screen;
+}
+
+@keyframes siriGradient {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .btn {

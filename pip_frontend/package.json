@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "main": "main.js",
   "scripts": {
+    "mock": "node server/server.js",
     "dev": "electron .",
     "build": "electron-builder"
   },
@@ -14,5 +15,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "sip.js": "^0.21.2"
+  }
 }

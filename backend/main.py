@@ -1,5 +1,6 @@
 # backend/main.py
 import os
+import time
 from datetime import date
 from io import BytesIO
 
@@ -16,8 +17,6 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 runner = Runner()
 app = FastAPI()
-
-# CORS für Zugriff vom React-Frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -29,27 +28,34 @@ app.add_middleware(
 
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
+    t0 = time.perf_counter()
     audio_data = await file.read()
     wav_io = BytesIO(audio_data)
-
     transcription = openai.audio.transcriptions.create(
         file=("audio.wav", wav_io, "audio/wav"),
         model="whisper-1",
         language="de"
     )
-
-    return {"text": transcription.text}
+    dt = time.perf_counter() - t0
+    print(f"/transcribe {dt:.3f}s")
+    return {"text": transcription.text, "duration": dt}
 
 
 @app.post("/ask")
 async def ask_agent(messages: list[dict]):
+    t0 = time.perf_counter()
     messages.append({"role": "system", "content": f"Heute ist der {date.today().isoformat()}"})
     result = await runner.run(main_agent, messages)
-    return {"response": result.final_output}
+    dt = time.perf_counter() - t0
+    print(f"/ask {dt:.3f}s")
+    return {"response": result.final_output, "duration": dt}
 
 
 @app.post("/trafficLight")
 async def traffic_light(messages: list[dict]):
+    t0 = time.perf_counter()
     messages.append({"role": "system", "content": f"Heute ist der {date.today().isoformat()}"})
     result = await runner.run(traffic_light_agent, messages)
-    return {"response": result.final_output}
+    dt = time.perf_counter() - t0
+    print(f"/trafficLight {dt:.3f}s")
+    return {"response": result.final_output, "duration": dt}

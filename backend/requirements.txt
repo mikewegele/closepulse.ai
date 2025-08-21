@@ -7,3 +7,6 @@ numpy
 webrtcvad
 soundfile
 dia
+sqlalchemy
+asyncpg
+greenlet

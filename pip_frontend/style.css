@@ -2,6 +2,15 @@ html, body {
     margin: 0;
     background: transparent;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #000;
+    transition: background 0.3s, color 0.3s;
+}
+
+/* Dark Mode Basis */
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+    background: transparent;
+    color: #f0f0f0;
 }
 
 .wrap {
@@ -29,7 +38,6 @@ html, body {
     overflow: hidden;
 }
 
-/* Optional: leichte Farbbewegung im Kreis */
 .dot::before {
     content: '';
     position: absolute;
@@ -58,9 +66,8 @@ html, body {
     background: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.6);
     color: #000;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 16px; /* größer */
-    font-weight: 500; /* fetter */
+    font-size: 16px;
+    font-weight: 500;
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -74,13 +81,23 @@ html, body {
     backdrop-filter: blur(10px);
     cursor: pointer;
     text-align: left;
-    transition: background .2s, transform .15s;
+    transition: background .2s, transform .15s, color .3s;
 }
-
 
 .btn:hover {
     background: rgba(255, 255, 255, 0.85);
     transform: translateY(-1px);
+}
+
+/* Dark Mode Buttons */
+html[data-theme="dark"] .btn {
+    background: rgba(40, 40, 40, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #f0f0f0;
+}
+
+html[data-theme="dark"] .btn:hover {
+    background: rgba(60, 60, 60, 0.9);
 }
 
 .row {
@@ -102,7 +119,7 @@ html, body {
     user-select: none;
     color: #000;
     backdrop-filter: blur(8px);
-    transition: background 0.2s, transform 0.15s;
+    transition: background 0.2s, transform 0.15s, color .3s;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
@@ -111,23 +128,65 @@ html, body {
     transform: scale(1.05);
 }
 
-/* Inputs / Textareas im gleichen Stil */
+/* Dark Mode Icons */
+html[data-theme="dark"] .icon {
+    background: rgba(40, 40, 40, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #f0f0f0;
+}
+
+html[data-theme="dark"] .icon:hover {
+    background: rgba(60, 60, 60, 0.9);
+}
+
 input, textarea {
     min-height: 46px;
     padding: 10px 12px;
     border-radius: 8px;
     border: 1px solid rgba(0, 0, 0, 0.2);
     background: rgba(255, 255, 255, 0.75);
-    color: red;
-    font-size: 20px; /* größer */
+    color: #000;
+    font-size: 20px;
     font-weight: 800;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     backdrop-filter: blur(8px);
     outline: none;
-    transition: background 0.2s, border 0.2s;
+    transition: background 0.2s, border 0.2s, color .3s;
 }
 
 input:focus, textarea:focus {
     background: rgba(255, 255, 255, 0.9);
     border-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Dark Mode Inputs */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea {
+    background: rgba(40, 40, 40, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #f0f0f0;
+}
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] textarea:focus {
+    background: rgba(60, 60, 60, 0.9);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Latency Panel */
+#latency {
+    font-size: 12px;
+    line-height: 1.4;
+    color: #333;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin: 8px 0 12px;
+    white-space: pre-wrap;
+    user-select: text;
+}
+
+html[data-theme="dark"] #latency {
+    color: #ccc;
+    background: rgba(40, 40, 40, 0.7);
 }

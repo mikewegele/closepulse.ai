@@ -1,0 +1,15 @@
+{
+  "name": "closepulse.ai",
+  "version": "1.0.0",
+  "private": true,
+  "author": "closepulse.ai Team",
+  "license": "MIT",
+  "scripts": {
+    "application": "concurrently -n be,fe -c green,yellow \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && uvicorn main:app --reload",
+    "frontend": "cd pip_frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

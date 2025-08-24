@@ -1,6 +1,7 @@
 # backend/main.py
 import asyncio
 import json
+import logging
 import os
 import time
 import uuid
@@ -15,11 +16,12 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import String, Text, DateTime, JSON, ForeignKey, select
+from sqlalchemy import select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from closepulse_agents import main_agent, traffic_light_agent, database_agent
+from models import Base, Conversation, Message
 
 # -------------------------------------------------------------------
 # Setup
@@ -28,7 +30,7 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 runner = Runner()
-app = FastAPI(title="closepulse.ai backend", version="1.3.1")
+app = FastAPI(title="closepulse.ai backend", version="1.4.0")
 
 ALLOWED_ORIGINS = os.getenv("CLOSEPULSE_CORS", "").split(",") if os.getenv("CLOSEPULSE_CORS") else [
     "http://localhost",
@@ -50,40 +52,15 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=512)
 
+log = logging.getLogger("app")
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+
 # -------------------------------------------------------------------
-# Database (Neon Postgres)
+# Database (Neon Postgres / SQLite)
 # -------------------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./closepulse.db")
 engine = create_async_engine(DATABASE_URL, echo=False, future=True, pool_pre_ping=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
-
-
-# -------------------------------------------------------------------
-# ORM Models (nur Conversations & Messages werden verwendet)
-# -------------------------------------------------------------------
-class Base(DeclarativeBase):
-    pass
-
-
-class Conversation(Base):
-    __tablename__ = "conversations"
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    meta: Mapped[dict] = mapped_column(JSON, default=dict)
-    messages: Mapped[list["Message"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
-
-
-class Message(Base):
-    __tablename__ = "messages"
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
-    role: Mapped[str] = mapped_column(String(32))  # "user"
-    content: Mapped[str] = mapped_column(Text)  # NUR Transkript-Text
-    source: Mapped[Optional[str]] = mapped_column(String(32), default=None)  # optional
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    meta: Mapped[dict] = mapped_column(JSON, default=dict)  # bleibt leer {}
-
-    conversation: Mapped["Conversation"] = relationship(back_populates="messages")
 
 
 @app.on_event("startup")
@@ -107,7 +84,7 @@ class AskResponse(BaseModel):
 
 
 class TLResponse(BaseModel):
-    response: str
+    response: Any
     duration: float
     conversation_id: Optional[str] = None
 
@@ -179,7 +156,21 @@ async def add_message(
     )
     db.add(msg)
     await db.commit()
+    await db.refresh(msg)
     return msg
+
+
+async def update_message_tl(
+        db: AsyncSession,
+        message_id: int,
+        traffic_light: Optional[str],
+):
+    await db.execute(
+        sa_update(Message)
+        .where(Message.id == message_id)
+        .values(traffic_light=traffic_light)
+    )
+    await db.commit()
 
 
 # -------------------------------------------------------------------
@@ -197,7 +188,7 @@ async def health():
 async def transcribe(
         request: Request,
         file: UploadFile = File(...),
-        x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False)
+        x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
 ):
     t0 = time.perf_counter()
     try:
@@ -219,40 +210,52 @@ async def transcribe(
         )
 
         dt = time.perf_counter() - t0
-        text = transcription.text.strip()
+        text = (getattr(transcription, "text", "") or "").strip()
         conversation_id = None
-        print(text)
-        db_text = await runner.run(database_agent, text)
-        print(db_text)
+
+        anonym_text = ""
         if text:
+            # DSGVO: Text über DatabaseAgent anonymisieren (1:1, nur PII maskieren)
+            try:
+                da_out = await runner.run(database_agent, [{"role": "user", "content": text}])
+                anonym_text = (getattr(da_out, "final_output", "") or "").strip()
+            except Exception:
+                # Fallback: lieber nichts speichern als nicht-anonymisiert
+                anonym_text = ""
+
             async with SessionLocal() as db:
                 conversation_id = await get_or_create_conversation(db, x_conversation_id)
-                await add_message(
-                    db,
-                    conversation_id,
-                    role="user",
-                    content=db_text.final_output,
-                    source="transcribe",
-                    meta={"mime": mime, "filename": name, "latency": dt},
-                )
+
+                if anonym_text:
+                    await add_message(
+                        db,
+                        conversation_id,
+                        role="user",
+                        content=anonym_text,
+                        source="transcribe",
+                        meta={"mime": mime, "filename": name, "latency": dt},
+                    )
+                else:
+                    # nichts speichern (sicherer Fallback)
+                    pass
 
         print(f"/transcribe {dt:.3f}s")
         return {
             "text": text,
             "duration": dt,
-            "conversation_id": conversation_id
+            "conversation_id": conversation_id,
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        log.exception("transcribe failed: %s", e)
         raise HTTPException(status_code=500, detail=f"transcribe failed: {e}") from e
 
 
 # -------------------------------------------------------------------
 # Delete-Endpoint (DGSVO)
 # -------------------------------------------------------------------
-
 @app.delete("/conversations/{conversation_id}")
 async def delete_conversation(conversation_id: str):
     # Optional: DatabaseAgent fragen (Policy zentral)
@@ -272,10 +275,9 @@ async def delete_conversation(conversation_id: str):
 # -------------------------------------------------------------------
 # Read-Usecases (Export)
 # -------------------------------------------------------------------
-
 @app.get("/conversations/{conversation_id}/export")
 async def export_conversation(conversation_id: str):
-    # Agent kann Limit/Filter entscheiden, wir machen’s simpel:
+    # Agent kann Limit/Filter entscheiden; hier simpel:
     payload = {"event": "EXPORT", "conversation_id": conversation_id}
     db_decision = await runner.run(database_agent, [{"role": "user", "content": json.dumps(payload)}])
     action = json.loads(db_decision.final_output)
@@ -288,7 +290,15 @@ async def export_conversation(conversation_id: str):
         msgs = res.scalars().all()
         return {
             "conversation_id": conversation_id,
-            "messages": [{"role": m.role, "text": m.content, "ts": m.created_at.isoformat()} for m in msgs]
+            "messages": [
+                {
+                    "role": m.role,
+                    "text": m.content,
+                    "ts": m.created_at.isoformat(),
+                    "traffic_light": m.traffic_light,
+                }
+                for m in msgs
+            ],
         }
 
 
@@ -320,7 +330,7 @@ async def ask_agent(
 
 
 # -------------------------------------------------------------------
-# Traffic Light — KEINE Persistenz
+# Traffic Light — PERSISTENZ am letzten User-Message-Eintrag (nur Farbe)
 # -------------------------------------------------------------------
 @app.post("/trafficLight", response_model=TLResponse)
 async def traffic_light(
@@ -336,10 +346,38 @@ async def traffic_light(
             label="trafficLight",
         )
         dt = time.perf_counter() - t0
-        tl_resp = result.final_output
-        # Nichts speichern – nur zurückgeben
-        print(f"/trafficLight {dt:.3f}s (no storage)")
-        return {"response": tl_resp, "duration": dt, "conversation_id": x_conversation_id}
+        tl_raw = getattr(result, "final_output", None)
+
+        tl_label: Optional[str] = None
+        if isinstance(tl_raw, str) and tl_raw.lower() in {"green", "yellow", "red"}:
+            tl_label = tl_raw.lower()
+        elif isinstance(tl_raw, dict):
+            tl_label = (tl_raw.get("label") or tl_raw.get("traffic_light") or "").lower()
+        else:
+            # evtl. JSON-String
+            try:
+                obj = json.loads(tl_raw) if isinstance(tl_raw, str) else None
+                if isinstance(obj, dict):
+                    tl_label = (obj.get("label") or obj.get("traffic_light") or "").lower()
+            except Exception:
+                pass
+
+        # Persistieren auf letzte User-Message der Konversation
+        if x_conversation_id and tl_label in {"green", "yellow", "red"}:
+            async with SessionLocal() as db:
+                res = await db.execute(
+                    select(Message)
+                    .where(Message.conversation_id == x_conversation_id, Message.role == "user")
+                    .order_by(Message.created_at.desc())
+                    .limit(1)
+                )
+                last_msg = res.scalars().first()
+                print(last_msg, x_conversation_id)
+                if last_msg:
+                    await update_message_tl(db, last_msg.id, tl_label)
+
+        print(f"/trafficLight {dt:.3f}s (stored)")
+        return {"response": tl_label, "duration": dt, "conversation_id": x_conversation_id}
     except HTTPException:
         raise
     except Exception as e:
@@ -395,6 +433,7 @@ class MessageOut(BaseModel):
     source: Optional[str]
     created_at: datetime
     meta: dict
+    traffic_light: Optional[str] = None
 
 
 class ConversationOut(BaseModel):
@@ -427,6 +466,7 @@ async def list_messages(conversation_id: str):
                 source=m.source,
                 created_at=m.created_at,
                 meta=m.meta,
+                traffic_light=m.traffic_light,
             )
             for m in msgs
         ]

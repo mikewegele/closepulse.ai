@@ -221,6 +221,9 @@ async def transcribe(
         dt = time.perf_counter() - t0
         text = transcription.text.strip()
         conversation_id = None
+        print(text)
+        db_text = await runner.run(database_agent, text)
+        print(db_text)
         if text:
             async with SessionLocal() as db:
                 conversation_id = await get_or_create_conversation(db, x_conversation_id)
@@ -228,7 +231,7 @@ async def transcribe(
                     db,
                     conversation_id,
                     role="user",
-                    content=text,
+                    content=db_text.final_output,
                     source="transcribe",
                     meta={"mime": mime, "filename": name, "latency": dt},
                 )

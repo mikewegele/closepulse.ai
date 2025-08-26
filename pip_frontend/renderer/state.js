@@ -12,7 +12,7 @@ export const el = {
 export const state = {
     showLatency: JSON.parse(localStorage.getItem("cp_showLatency") ?? "true"),
     theme: localStorage.getItem("cp_theme") || "light",
-    analyzeSupported: true,
+    analyzeSupported: false,
     turns: [],
     askAborter: null,
     tlAborter: null,

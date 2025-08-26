@@ -347,37 +347,8 @@ async def traffic_light(
         )
         dt = time.perf_counter() - t0
         tl_raw = getattr(result, "final_output", None)
-
-        tl_label: Optional[str] = None
-        if isinstance(tl_raw, str) and tl_raw.lower() in {"green", "yellow", "red"}:
-            tl_label = tl_raw.lower()
-        elif isinstance(tl_raw, dict):
-            tl_label = (tl_raw.get("label") or tl_raw.get("traffic_light") or "").lower()
-        else:
-            # evtl. JSON-String
-            try:
-                obj = json.loads(tl_raw) if isinstance(tl_raw, str) else None
-                if isinstance(obj, dict):
-                    tl_label = (obj.get("label") or obj.get("traffic_light") or "").lower()
-            except Exception:
-                pass
-
-        # Persistieren auf letzte User-Message der Konversation
-        if x_conversation_id and tl_label in {"green", "yellow", "red"}:
-            async with SessionLocal() as db:
-                res = await db.execute(
-                    select(Message)
-                    .where(Message.conversation_id == x_conversation_id, Message.role == "user")
-                    .order_by(Message.created_at.desc())
-                    .limit(1)
-                )
-                last_msg = res.scalars().first()
-                print(last_msg, x_conversation_id)
-                if last_msg:
-                    await update_message_tl(db, last_msg.id, tl_label)
-
-        print(f"/trafficLight {dt:.3f}s (stored)")
-        return {"response": tl_label, "duration": dt, "conversation_id": x_conversation_id}
+        print(f"/trafficLight {dt:.3f}s | {tl_raw})")
+        return {"response": tl_raw, "duration": dt, "conversation_id": x_conversation_id}
     except HTTPException:
         raise
     except Exception as e:

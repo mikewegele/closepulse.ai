@@ -1,6 +1,5 @@
 import {el, state} from "../state.js";
 import {applyTheme} from "./theme.js";
-import {setLatencyVisible} from "./latency.js";
 import {toggleRecording} from "../audio/recorder.js";
 
 export function initToolbar() {
@@ -30,18 +29,6 @@ export function initToolbar() {
             },
         },
         {
-            id: "cp-latency",
-            emoji: "⏱️",
-            title: () =>
-                state.showLatency
-                    ? "Latenz-Panel ausblenden"
-                    : "Latenz-Panel einblenden",
-            onclick: () => {
-                setLatencyVisible(!state.showLatency);
-                syncLatency();
-            },
-        },
-        {
             id: "cp-close",
             emoji: "❌",
             title: "Fenster schließen",
@@ -53,10 +40,6 @@ export function initToolbar() {
     const syncTheme = () => {
         const btn = document.getElementById("cp-theme");
         if (btn) btn.textContent = state.theme === "dark" ? "☀️" : "🌙";
-    };
-    const syncLatency = () => {
-        const btn = document.getElementById("cp-latency");
-        if (btn) btn.title = state.showLatency ? "Latenz-Panel ausblenden" : "Latenz-Panel einblenden";
     };
 
     // Buttons rendern
@@ -75,5 +58,4 @@ export function initToolbar() {
 
     // initial sync
     syncTheme();
-    syncLatency();
 }

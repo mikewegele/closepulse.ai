@@ -1,10 +1,10 @@
 import {el} from "../state.js";
 
 export function setDotColor(tlObj) {
-    const tlObjResponse = tlObj.response;
+    console.log(tlObj)
     let color = null;
-    if (typeof tlObjResponse === "string") color = JSON.parse(tlObjResponse).response;
-    else if (tlObjResponse && typeof tlObjResponse === "object") color = tlObjResponse.response || tlObjResponse?.data?.response;
+    if (typeof tlObj === "string") color = JSON.parse(tlObj).response;
+    else if (tlObj && typeof tlObj === "object") color = tlObj.response || tlObj?.data?.response;
     if (!color) {
         el.dot.style.color = '#d9d9d9';
         el.dot.style.background = 'rgba(217,217,217,0.6)';

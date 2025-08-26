@@ -2,14 +2,12 @@
 import {el} from "./state.js";
 import {initTheme} from "./ui/theme.js";
 import {initToolbar} from "./ui/toolbar.js";
-import {initLatency} from "./ui/latency.js";
 import {sendUserText} from "./backend/api.js";
 import {toggleRecording} from "./audio/recorder.js";
 
 // Init UI
 initTheme();
 initToolbar();
-initLatency();
 
 // Wire suggestion buttons (keine else-if-Kette)
 if (el.s1) {

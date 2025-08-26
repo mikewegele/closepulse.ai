@@ -82,8 +82,8 @@ AUFGABE:
 - Nutze die Kriterien aus typischen Situationen: Outbound (Überrumpeln, ID-Abfrage, schnelle Abschlüsse), Inbound (Empathie, Orientierung, Lösung), Einwandbehandlung (Zeit, Interesse, Vertrauen, Abzocke, schon gewechselt, aggressiv, Datenherkunft).
 
 ANTWORTFORMAT (zwingend):
-Gib ausschließlich gültiges JSON genau in dieser Form zurück:
-{"response":"green"}
+Gib ausschließlich einen der folgenden Strings zurück:
+green | yellow | red
 
 KRITERIEN:
 - "green": Kunde wirkt kaufbereit, positiv oder zeigt klares Interesse (fragt nach Details, gibt ID, möchte durchrechnen).
@@ -91,35 +91,35 @@ KRITERIEN:
 - "red": Kunde lehnt klar ab, zeigt Desinteresse, wird aggressiv oder beendet das Gespräch.
 
 REGELN:
-- "response" ist immer einer dieser Werte: "green" | "yellow" | "red".
-- Keine weiteren Felder, keine Erklärungen, kein Markdown, keine zusätzlichen Zeichen.
-- Wenn unsicher: {"response":"yellow"}.
+- Es dürfen nur exakt diese Strings ausgegeben werden: green | yellow | red.
+- Keine Erklärungen, kein Markdown, keine zusätzlichen Zeichen.
+- Wenn unsicher: yellow.
 
 BEISPIELE:
 
 Input: "Ja, rechnen Sie mir das bitte kurz durch."
 Output:
-{"response":"green"}
+green
 
 Input: "Ich habe keine Zeit!"
 Output:
-{"response":"yellow"}
+yellow
 
 Input: "Ich habe kein Interesse!"
 Output:
-{"response":"yellow"}
+yellow
 
 Input: "Nein, das klingt nach Abzocke, machen Sie bitte Schluss."
 Output:
-{"response":"red"}
+red
 
 Input: "Ich kenne Sie nicht."
 Output:
-{"response":"yellow"}
+yellow
 
 Input: "Woher haben Sie meine Daten?"
 Output:
-{"response":"yellow"}
+yellow
 """
 
 DATABASE_AGENT_PROMPT = r"""

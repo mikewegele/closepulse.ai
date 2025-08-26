@@ -11,14 +11,14 @@ from typing import List, Dict, Any, Optional
 import openai
 from agents import Runner
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-from closepulse_agents import main_agent, traffic_light_agent, database_agent
+from closepulse_agents import main_agent, traffic_light_agent, database_agent, combo_agent
 from models import Base, Conversation, Message
 
 # -------------------------------------------------------------------
@@ -171,6 +171,36 @@ async def update_message_tl(
     await db.commit()
 
 
+async def anonymize_and_store(text: str, mime: str, name: str, x_conversation_id: str | None):
+    """Läuft außerhalb des Response-Pfads."""
+    t0 = time.perf_counter()
+    anonym_text = ""
+    try:
+        da_out = await runner.run(database_agent, [{"role": "user", "content": text}])
+        anonym_text = (getattr(da_out, "final_output", "") or "").strip()
+    except Exception as e:
+        log.warning("anonymize failed: %s", e)
+
+    if not anonym_text:
+        log.info("anonymize_and_store: empty anonym_text -> skip persist")
+        return
+
+    try:
+        async with SessionLocal() as db:
+            conv_id = await get_or_create_conversation(db, x_conversation_id)
+            await add_message(
+                db,
+                conv_id,
+                role="user",
+                content=anonym_text,
+                source="transcribe",
+                meta={"mime": mime, "filename": name},
+            )
+        log.info("anonymize_and_store done in %.3fs", time.perf_counter() - t0)
+    except Exception as e:
+        log.exception("persist failed: %s", e)
+
+
 # -------------------------------------------------------------------
 # Health
 # -------------------------------------------------------------------
@@ -182,66 +212,50 @@ async def health():
 # -------------------------------------------------------------------
 # Transcribe (EINZIGE Persistenz-Stelle)
 # -------------------------------------------------------------------
+
 @app.post("/transcribe")
 async def transcribe(
         request: Request,
         file: UploadFile = File(...),
-        x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
+        x_conversation_id: str | None = Header(default=None, convert_underscores=False),
+        background_tasks: BackgroundTasks = None,
 ):
+    log.info("START TRANSCRIBE")
     t0 = time.perf_counter()
     try:
-        # Datei laden
         raw = await file.read()
         if not raw:
             raise HTTPException(status_code=400, detail="Empty audio payload")
 
-        # Meta bestimmen
         mime = safe_mime_from_upload(file)
         name = file.filename or ("audio.webm" if "webm" in mime else "audio.wav")
         wav_io = BytesIO(raw)
 
-        # Transkription
+        # nur STT im kritischen Pfad
         transcription = openai.audio.transcriptions.create(
             file=(name, wav_io, mime),
             model=os.getenv("TRANSCRIBE_MODEL", "whisper-1"),
             language=os.getenv("TRANSCRIBE_LANG", "de"),
         )
-
-        dt = time.perf_counter() - t0
         text = (getattr(transcription, "text", "") or "").strip()
-        conversation_id = None
 
-        anonym_text = ""
+        # Antwort SOFORT
+        dt = time.perf_counter() - t0
+        log.info("/transcribe fast-path %.3fs (stt only)", dt)
+
+        # Persistenz asynchron
         if text:
-            # DSGVO: Text über DatabaseAgent anonymisieren (1:1, nur PII maskieren)
-            try:
-                da_out = await runner.run(database_agent, [{"role": "user", "content": text}])
-                anonym_text = (getattr(da_out, "final_output", "") or "").strip()
-            except Exception:
-                # Fallback: lieber nichts speichern als nicht-anonymisiert
-                anonym_text = ""
+            if background_tasks is not None:
+                background_tasks.add_task(anonymize_and_store, text, mime, name, x_conversation_id)
+            else:
+                # Fallback ohne BackgroundTasks
+                import asyncio
+                asyncio.create_task(anonymize_and_store(text, mime, name, x_conversation_id))
 
-            async with SessionLocal() as db:
-                conversation_id = await get_or_create_conversation(db, x_conversation_id)
-
-                if anonym_text:
-                    await add_message(
-                        db,
-                        conversation_id,
-                        role="user",
-                        content=anonym_text,
-                        source="transcribe",
-                        meta={"mime": mime, "filename": name, "latency": dt},
-                    )
-                else:
-                    # nichts speichern (sicherer Fallback)
-                    pass
-
-        print(f"/transcribe {dt:.3f}s")
         return {
             "text": text,
-            "duration": dt,
-            "conversation_id": conversation_id,
+            "duration": dt,  # reine STT-Dauer
+            "conversation_id": None,  # conv_id wird im Hintergrund erzeugt
         }
 
     except HTTPException:
@@ -259,6 +273,7 @@ async def analyze(
         messages: List[ChatMessage],
         x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
 ):
+    print("START ANALYZE")
     t0 = time.perf_counter()
     try:
         payload = [m.dict() for m in messages] + [system_date_message()]
@@ -287,3 +302,41 @@ async def analyze(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"analyze failed: {e}") from e
+
+
+@app.post("/analyze_fast", response_model=AnalyzeResponse)
+async def analyze_fast(
+        messages: List[ChatMessage],
+        x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
+):
+    t0 = time.perf_counter()
+    try:
+        # Kontext schlank halten: z. B. nur die letzten 6 Messages
+        short = messages[-6:] if len(messages) > 6 else messages
+        payload = [m.dict() for m in short] + [system_date_message()]
+
+        res = await with_timeout(
+            runner.run(combo_agent, payload),
+            timeout=float(os.getenv("ASK_TIMEOUT", "12")),
+            label="analyze_fast",
+        )
+
+        raw = getattr(res, "final_output", "") or "{}"
+
+        import json
+        data = json.loads(raw)
+        tl = str(data.get("trafficLight", "yellow")).lower()
+        if tl not in ("green", "yellow", "red"):
+            tl = "yellow"
+
+        dt = time.perf_counter() - t0
+        print(f"/analyze_fast {dt:.3f}s (combo)")
+
+        return {
+            "suggestions": data.get("suggestions", []),
+            "trafficLight": {"response": tl},
+            "durations": {"total": dt},
+            "conversation_id": x_conversation_id,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"analyze_fast failed: {e}") from e

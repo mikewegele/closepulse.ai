@@ -1,6 +1,6 @@
 from agents import Agent
 
-from prompts import SALES_ASSISTANT_PROMPT, TRAFFIC_LIGHT_AGENT_PROMPT, DATABASE_AGENT_PROMPT
+from prompts import SALES_ASSISTANT_PROMPT, TRAFFIC_LIGHT_AGENT_PROMPT, DATABASE_AGENT_PROMPT, COMBO_AGENT_PROMPT
 
 sales_assistant_agent = Agent(
     name="SalesAssistantDep",
@@ -20,4 +20,9 @@ traffic_light_agent = Agent(
 database_agent = Agent(
     name="DatabaseAgent",
     instructions=DATABASE_AGENT_PROMPT,
+)
+
+combo_agent = Agent(
+    name="ComboAgent",
+    instructions=COMBO_AGENT_PROMPT,
 )

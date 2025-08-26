@@ -7,7 +7,8 @@
   "scripts": {
     "application": "concurrently -n be,fe -c green,yellow \"npm run backend\" \"npm run frontend\"",
     "backend": "cd backend && uvicorn main:app --reload",
-    "frontend": "cd pip_frontend && npm run dev"
+    "frontend": "cd pip_frontend && npm run dev",
+    "kill-backend": "kill -9 $(lsof -t -i:8000) || true"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

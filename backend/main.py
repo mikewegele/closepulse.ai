@@ -1,6 +1,5 @@
 # backend/main.py
 import asyncio
-import json
 import logging
 import os
 import time
@@ -16,7 +15,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
@@ -254,114 +252,11 @@ async def transcribe(
 
 
 # -------------------------------------------------------------------
-# Delete-Endpoint (DGSVO)
-# -------------------------------------------------------------------
-@app.delete("/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: str):
-    # Optional: DatabaseAgent fragen (Policy zentral)
-    payload = {"event": "DELETE_REQUEST", "conversation_id": conversation_id}
-    db_decision = await runner.run(database_agent, [{"role": "user", "content": json.dumps(payload)}])
-    action = json.loads(db_decision.final_output)
-    if action.get("op") != "DELETE_CONVERSATION":
-        return {"status": "skipped"}
-    async with SessionLocal() as db:
-        from sqlalchemy import delete
-        await db.execute(delete(Message).where(Message.conversation_id == conversation_id))
-        await db.execute(delete(Conversation).where(Conversation.id == conversation_id))
-        await db.commit()
-    return {"status": "deleted", "conversation_id": conversation_id}
-
-
-# -------------------------------------------------------------------
-# Read-Usecases (Export)
-# -------------------------------------------------------------------
-@app.get("/conversations/{conversation_id}/export")
-async def export_conversation(conversation_id: str):
-    # Agent kann Limit/Filter entscheiden; hier simpel:
-    payload = {"event": "EXPORT", "conversation_id": conversation_id}
-    db_decision = await runner.run(database_agent, [{"role": "user", "content": json.dumps(payload)}])
-    action = json.loads(db_decision.final_output)
-    if action.get("op") not in ("EXPORT_CONVERSATION", "LIST_MESSAGES"):
-        action = {"op": "EXPORT_CONVERSATION", "data": {"conversation_id": conversation_id}}
-    async with SessionLocal() as db:
-        res = await db.execute(
-            select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at.asc())
-        )
-        msgs = res.scalars().all()
-        return {
-            "conversation_id": conversation_id,
-            "messages": [
-                {
-                    "role": m.role,
-                    "text": m.content,
-                    "ts": m.created_at.isoformat(),
-                    "traffic_light": m.traffic_light,
-                }
-                for m in msgs
-            ],
-        }
-
-
-# -------------------------------------------------------------------
-# Ask — KEINE Persistenz
-# -------------------------------------------------------------------
-@app.post("/ask", response_model=AskResponse)
-async def ask_agent(
-        messages: List[ChatMessage],
-        x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
-):
-    t0 = time.perf_counter()
-    try:
-        payload = [m.dict() for m in messages] + [system_date_message()]
-        result = await with_timeout(
-            runner.run(main_agent, payload),
-            timeout=float(os.getenv("ASK_TIMEOUT", "25")),
-            label="ask",
-        )
-        dt = time.perf_counter() - t0
-        resp_text = result.final_output
-        # Nichts speichern – nur zurückgeben
-        print(f"/ask {dt:.3f}s (no storage)")
-        return {"response": resp_text, "duration": dt, "conversation_id": x_conversation_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ask failed: {e}") from e
-
-
-# -------------------------------------------------------------------
-# Traffic Light — PERSISTENZ am letzten User-Message-Eintrag (nur Farbe)
-# -------------------------------------------------------------------
-@app.post("/trafficLight", response_model=TLResponse)
-async def traffic_light(
-        messages: List[ChatMessage],
-        x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
-):
-    t0 = time.perf_counter()
-    try:
-        payload = [m.dict() for m in messages] + [system_date_message()]
-        result = await with_timeout(
-            runner.run(traffic_light_agent, payload),
-            timeout=float(os.getenv("TL_TIMEOUT", "15")),
-            label="trafficLight",
-        )
-        dt = time.perf_counter() - t0
-        tl_raw = getattr(result, "final_output", None)
-        print(f"/trafficLight {dt:.3f}s | {tl_raw})")
-        return {"response": tl_raw, "duration": dt, "conversation_id": x_conversation_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"trafficLight failed: {e}") from e
-
-
-# -------------------------------------------------------------------
 # Analyze (kombiniert) — KEINE Persistenz
 # -------------------------------------------------------------------
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(
         messages: List[ChatMessage],
-        request: Request,
         x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
 ):
     t0 = time.perf_counter()
@@ -392,52 +287,3 @@ async def analyze(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"analyze failed: {e}") from e
-
-
-# -------------------------------------------------------------------
-# Read APIs (nur zum Auslesen der gespeicherten Transkripte)
-# -------------------------------------------------------------------
-class MessageOut(BaseModel):
-    id: int
-    role: str
-    content: str
-    source: Optional[str]
-    created_at: datetime
-    meta: dict
-    traffic_light: Optional[str] = None
-
-
-class ConversationOut(BaseModel):
-    id: str
-    started_at: datetime
-    meta: dict
-
-
-@app.get("/conversations/{conversation_id}", response_model=ConversationOut)
-async def get_conversation(conversation_id: str):
-    async with SessionLocal() as db:
-        conv = await db.get(Conversation, conversation_id)
-        if not conv:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        return ConversationOut(id=conv.id, started_at=conv.started_at, meta=conv.meta)
-
-
-@app.get("/conversations/{conversation_id}/messages", response_model=List[MessageOut])
-async def list_messages(conversation_id: str):
-    async with SessionLocal() as db:
-        res = await db.execute(
-            select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at.asc())
-        )
-        msgs = res.scalars().all()
-        return [
-            MessageOut(
-                id=m.id,
-                role=m.role,
-                content=m.content,
-                source=m.source,
-                created_at=m.created_at,
-                meta=m.meta,
-                traffic_light=m.traffic_light,
-            )
-            for m in msgs
-        ]

@@ -1,10 +1,6 @@
 import {el} from "../state.js";
 
-export function setDotColor(tlObj) {
-    console.log(tlObj)
-    let color = null;
-    if (typeof tlObj === "string") color = JSON.parse(tlObj).response;
-    else if (tlObj && typeof tlObj === "object") color = tlObj.response || tlObj?.data?.response;
+export function setDotColor(color) {
     if (!color) {
         el.dot.style.color = '#d9d9d9';
         el.dot.style.background = 'rgba(217,217,217,0.6)';

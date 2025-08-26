@@ -220,7 +220,6 @@ async def transcribe(
         x_conversation_id: str | None = Header(default=None, convert_underscores=False),
         background_tasks: BackgroundTasks = None,
 ):
-    log.info("START TRANSCRIBE")
     t0 = time.perf_counter()
     try:
         raw = await file.read()
@@ -273,7 +272,6 @@ async def analyze(
         messages: List[ChatMessage],
         x_conversation_id: Optional[str] = Header(default=None, convert_underscores=False),
 ):
-    print("START ANALYZE")
     t0 = time.perf_counter()
     try:
         payload = [m.dict() for m in messages] + [system_date_message()]
@@ -330,7 +328,7 @@ async def analyze_fast(
             tl = "yellow"
 
         dt = time.perf_counter() - t0
-        print(f"/analyze_fast {dt:.3f}s (combo)")
+        log.info(f"/analyze_fast {dt:.3f}s (combo)")
 
         return {
             "suggestions": data.get("suggestions", []),

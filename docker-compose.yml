@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      uvicorn main:app
+      --host 0.0.0.0 --port 8000
+      --loop uvloop --http httptools
+      --limit-max-requests 10000
+    env_file: [ .env ]
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped

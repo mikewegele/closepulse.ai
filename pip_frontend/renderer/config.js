@@ -1,8 +1,10 @@
-export const ASK_URL = "http://localhost:8000/ask";
-export const TL_URL = "http://localhost:8000/trafficLight";
-export const TR_URL = "http://localhost:8000/transcribe";
-export const ANALYZE_URL = "http://localhost:8000/analyze";
-export const ANALYZE_FAST_URL = "http://localhost:8000/analyze_fast";
+const API_BASE = "https://hidden-nonprofit-fe-ghost.trycloudflare.com"
+export const ASK_URL = `${API_BASE}/ask`;
+export const TL_URL = `${API_BASE}/trafficLight`;
+export const TR_URL = `${API_BASE}/transcribe`;
+export const ANALYZE_URL = `${API_BASE}/analyze`;
+export const ANALYZE_FAST_URL = `${API_BASE}/analyze_fast`;
+
 
 export const MAX_TURNS = 4; // keep context small
 export const TIMESLICE_MS = 500; // MediaRecorder slice

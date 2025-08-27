@@ -1,0 +1,23 @@
+:80 {
+  encode gzip
+
+  @options method OPTIONS
+  handle @options {
+    header {
+      Access-Control-Allow-Origin      "{http.request.header.Origin}"
+      Access-Control-Allow-Methods     "GET, POST, OPTIONS, DELETE"
+      Access-Control-Allow-Headers     "*"
+      Access-Control-Allow-Credentials "true"
+    }
+    respond "" 204
+  }
+
+  header {
+    Access-Control-Allow-Origin      "{http.request.header.Origin}"
+    Access-Control-Allow-Methods     "GET, POST, OPTIONS, DELETE"
+    Access-Control-Allow-Headers     "*"
+    Access-Control-Allow-Credentials "true"
+  }
+
+  reverse_proxy api:8000
+}

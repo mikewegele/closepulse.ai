@@ -1,4 +1,4 @@
-import {ANALYZE_FAST_URL, MAX_TURNS} from "../config.js";
+import {ANALYZE_FAST_URL, MAX_TURNS} from "../../config.js";
 import {state} from "../state.js";
 import {convoToString, pushTurn, safeJson} from "../utils.js";
 import {makeSuggestionsFrom, renderSuggestions} from "../ui/suggestions.js";

@@ -9,7 +9,8 @@
     "frontend": "cd pip_frontend && npm run dev",
     "frontend:build": "cd pip_frontend && npm run build",
     "frontend:preview": "cd pip_frontend && npm run preview",
-    "backend:docker": "docker compose up api proxy",
+    "backend:docker": "docker compose up api",
+    "tunnel:docker": "docker run -it --rm --network host cloudflare/cloudflared:latest \\\n  tunnel --url http://localhost:8000\n",
     "backend:docker:stop": "docker compose down",
     "tunnel": "docker run -it --rm --network host cloudflare/cloudflared:latest tunnel --url http://localhost:80",
     "app": "concurrently -n fe,tunnel -c yellow,blue \"npm run frontend\" \"npm run tunnel\""

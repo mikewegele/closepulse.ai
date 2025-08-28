@@ -1,4 +1,4 @@
-import {TR_URL} from "../config.js";
+import {TR_URL} from "../../config.js";
 import {safeJson} from "../utils.js";
 import {sendUserText} from "./api.js";
 

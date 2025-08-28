@@ -1,5 +1,5 @@
 import {state} from "../state.js";
-import {MAX_AUDIO_SECONDS, TIMESLICE_MS} from "../config.js";
+import {MAX_AUDIO_SECONDS, TIMESLICE_MS} from "../../config.js";
 import {transcribeAndSend} from "../backend/transcribe.js";
 
 export async function startRecording() {

@@ -1,10 +1,14 @@
-const API_BASE = "https://hidden-nonprofit-fe-ghost.trycloudflare.com"
+const FALLBACK = "https://passed-obtained-henderson-cure.trycloudflare.com"; // <- einsetzen
+
+const fromWindow = typeof window !== "undefined" && window.__API_BASE;
+
+export const API_BASE = fromWindow || FALLBACK;
+
 export const ASK_URL = `${API_BASE}/ask`;
 export const TL_URL = `${API_BASE}/trafficLight`;
 export const TR_URL = `${API_BASE}/transcribe`;
 export const ANALYZE_URL = `${API_BASE}/analyze`;
 export const ANALYZE_FAST_URL = `${API_BASE}/analyze_fast`;
-
 
 export const MAX_TURNS = 4; // keep context small
 export const TIMESLICE_MS = 500; // MediaRecorder slice

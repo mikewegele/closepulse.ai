@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
+    TELNYX_API_KEY: str
     DATABASE_URL: str = "sqlite+aiosqlite:///./closepulse.db"
     CLOSEPULSE_CORS: Optional[str] = None
     ASK_TIMEOUT: float = 25.0
@@ -12,6 +13,8 @@ class Settings(BaseSettings):
     TRANSCRIBE_MODEL: str = "whisper-1"
     TRANSCRIBE_LANG: str = "de"
     LOG_LEVEL: str = "INFO"
+    WS_BASE: str
+    PUBLIC_BASE: str
 
     class Config:
         env_file = ".env"

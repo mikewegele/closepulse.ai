@@ -4,15 +4,18 @@
     <meta charset="utf-8"/>
     <title>closepulse mini</title>
     <meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  connect-src 'self' http://localhost:8000 ws://localhost:* https://*.trycloudflare.com;
-  img-src 'self' data: blob:;
-  media-src 'self' blob:;
-  font-src 'self' data:;
-  script-src 'self' 'unsafe-inline';
-  style-src 'self' 'unsafe-inline';
-  frame-ancestors 'self';
-">
+    default-src 'self';
+    connect-src 'self'
+      http://localhost:8000 ws://localhost:*
+      https://api.closepulse192.win wss://api.closepulse192.win
+      https://*.trycloudflare.com wss://*.trycloudflare.com;
+    img-src 'self' data: blob:;
+    media-src 'self' blob:;
+    font-src 'self' data:;
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    frame-ancestors 'self';
+  ">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -22,7 +25,11 @@
     <button id="s2" class="btn"></button>
     <button id="s3" class="btn"></button>
 </div>
-<script>window.__API_BASE = "https://api.closepulse192.win";</script>
+<script>
+    window.__API_BASE = "https://api.closepulse192.win";
+    window.__CALL_ID = "v3:XVS77KHWt8taVxjQ0OVv4vjXir0vUBnVlFkMH2_4-fPFBwgbHFIwcg";
+</script>
+
 <script type="module" src="./renderer/index.js"></script>
 </body>
 </html>

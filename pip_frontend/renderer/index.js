@@ -3,7 +3,6 @@ import {el} from "./state.js";
 import {initTheme} from "./ui/theme.js";
 import {initToolbar} from "./ui/toolbar.js";
 import {sendUserText} from "./backend/api.js";
-import {toggleRecording} from "./audio/recorder.js";
 
 // Init UI
 initTheme();
@@ -30,5 +29,5 @@ if (el.s3) {
 }
 
 // Recorder + Close
-if (el.rec) el.rec.onclick = () => toggleRecording();
-if (el.close) el.close.onclick = () => window.close();
+// if (el.rec) el.rec.onclick = () => toggleRecording();
+// if (el.close) el.close.onclick = () => window.close();

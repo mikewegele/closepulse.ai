@@ -3,7 +3,8 @@ import time
 
 from ..agents import runner, database_agent
 from ..db import SessionLocal
-from ..utils import get_or_create_conversation, add_message
+from ..utils import add_message
+from ...utils.conversation_id import normalize_conversation_id
 
 log = logging.getLogger("app")
 
@@ -23,7 +24,7 @@ async def anonymize_and_store(text: str, mime: str, name: str, x_conversation_id
 
     try:
         async with SessionLocal() as db:
-            conv_id = await get_or_create_conversation(db, x_conversation_id)
+            conv_id = normalize_conversation_id(x_conversation_id, max_len=128)
             await add_message(
                 db, conv_id, role="user", content=anonym_text, source="transcribe",
                 meta={"mime": mime, "filename": name},

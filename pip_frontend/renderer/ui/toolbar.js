@@ -1,6 +1,7 @@
 import {el, state} from "../state.js";
 import {applyTheme} from "./theme.js";
 import {toggleRecording} from "../audio/recorder.js";
+import {requestSuggestionsOnDemand} from "../audio/analysis_on_demand.js";
 
 export function initToolbar() {
     let bar = document.getElementById("cp-toolbar");
@@ -11,14 +12,25 @@ export function initToolbar() {
         el.wrap.appendChild(bar); // statt prepend → jetzt unten
     }
 
-    // Reihenfolge: 🎤 🌙/☀️ ⏱️ ❌
+    const TELNYX_MODE = !!(window.__CALL_ID); // Auto: wenn CALL_ID gesetzt ist, kein Mic
+
     const buttons = [
+        // 💡 Vorschläge holen (on demand)
+        {
+            id: "cp-suggest",
+            emoji: "💡",
+            title: "Vorschläge holen",
+            onclick: () => requestSuggestionsOnDemand(),
+        },
+        // 🎤 Aufnahme (im Telnyx-Mode ausgeblendet)
         {
             id: "cp-rec",
             emoji: "🎤",
             title: "Aufnahme starten/stoppen",
             onclick: () => toggleRecording(),
+            hidden: TELNYX_MODE, // Mic ausblenden, wenn Telnyx läuft
         },
+        // 🌙/☀️ Theme
         {
             id: "cp-theme",
             emoji: () => (state.theme === "dark" ? "☀️" : "🌙"),
@@ -28,6 +40,7 @@ export function initToolbar() {
                 syncTheme();
             },
         },
+        // ❌ Schließen
         {
             id: "cp-close",
             emoji: "❌",
@@ -54,6 +67,7 @@ export function initToolbar() {
             btn.onclick = cfg.onclick;
             bar.appendChild(btn);
         }
+        btn.style.display = cfg.hidden ? "none" : "flex";
     });
 
     // initial sync

@@ -1,4 +1,4 @@
-const FALLBACK = "https://passed-obtained-henderson-cure.trycloudflare.com"; // <- einsetzen
+const FALLBACK = "https://api.closepulse192.win"; // <- einsetzen
 
 const fromWindow = typeof window !== "undefined" && window.__API_BASE;
 

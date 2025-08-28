@@ -5,7 +5,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from .config import settings
 from .db import init_models
 from .logging import setup_logging
-from .routers import health, transcribe, analyze
+from .routers import health, transcribe, analyze, telnyx
 
 log = setup_logging()
 
@@ -36,4 +36,5 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(transcribe.router)
     app.include_router(analyze.router)
+    app.include_router(telnyx.router)
     return app

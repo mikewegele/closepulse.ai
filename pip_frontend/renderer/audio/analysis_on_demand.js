@@ -15,7 +15,7 @@ export async function requestSuggestionsOnDemand() {
     }
 
     try {
-        const res = await fetch(`${API_BASE}/suggest?call_id=${encodeURIComponent(callId)}`, {
+        const res = await fetch(`${API_BASE}/suggest_audio?call_id=${encodeURIComponent(callId)}&save=1`, {
             method: "POST",
             headers: {"x-conversation-id": callId}
         }).then(r => r.json());
@@ -32,4 +32,3 @@ export async function requestSuggestionsOnDemand() {
         }
     }
 }
-

@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     WS_BASE: str
     PUBLIC_BASE: str
+    STORE_MODE: str = "on_demand"  # "always" | "on_demand" | "never"
+    EXTERNAL_CALL_ID: str
+    AUDIO_DIR: str
 
     class Config:
         env_file = ".env"

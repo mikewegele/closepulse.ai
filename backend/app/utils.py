@@ -1,10 +1,10 @@
 import asyncio
-import uuid
+import os
 from datetime import datetime
 from typing import Optional, Dict
 
 from fastapi import HTTPException, UploadFile
-from models import Conversation, Message
+from models import Message
 from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,17 +37,6 @@ def safe_mime_from_upload(file: UploadFile) -> str:
     return file.content_type or "application/octet-stream"
 
 
-async def get_or_create_conversation(db: AsyncSession, conversation_id: Optional[str]) -> str:
-    if not conversation_id:
-        conversation_id = str(uuid.uuid4())
-    conv = await db.get(Conversation, conversation_id)
-    if not conv:
-        conv = Conversation(id=conversation_id, started_at=now_berlin(), meta={})
-        db.add(conv)
-        await db.commit()
-    return conversation_id
-
-
 async def add_message(
         db: AsyncSession,
         conversation_id: str,
@@ -58,6 +47,7 @@ async def add_message(
 ):
     msg = Message(
         conversation_id=conversation_id,
+        external_id=os.getenv("EXTERNAL_CALL_ID", "EXT_FIXED_ID"),
         role=role,
         content=content,
         source=source,

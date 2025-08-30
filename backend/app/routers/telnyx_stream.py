@@ -1,64 +1,26 @@
 from __future__ import annotations
 
-import asyncio
 import base64
-import io
 import json
-import time
-import wave
 
 import audioop
-import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..config import settings
+from ..db import SessionLocal
 from ..logging import setup_logging
 from ..services.audio_sink import audio_sinks
+from ..services.live_audio import append_audio_chunk  # hängt an eine WAV pro Call
 from ..state.live_store import live_store
 
 log = setup_logging()
 router = APIRouter()
 
-BASE_TRANSCRIBE_URL = f"{settings.PUBLIC_BASE}/transcribe"
-CHUNK_SEC = 1.0
-VERBOSE_WS = False
-
 
 def mulaw_to_lin16(mu: bytes) -> bytes:
     if not mu:
         return b""
-    return audioop.ulaw2lin(mu, 2)
-
-
-async def flush_and_transcribe(call_id: str, pcm8k: bytes) -> None:
-    if not pcm8k:
-        return
-    try:
-        new, _ = audioop.ratecv(pcm8k, 2, 1, 8000, 16000, None)
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as w:
-            w.setnchannels(1)
-            w.setsampwidth(2)
-            w.setframerate(16000)
-            w.writeframes(new)
-        files = {"file": ("chunk.wav", buf.getvalue(), "audio/wav")}
-        url = f"{BASE_TRANSCRIBE_URL}?store=1"
-        async with httpx.AsyncClient(timeout=60.0) as c:
-            r = await c.post(
-                url,
-                files=files,
-                headers={
-                    "x-conversation-id": call_id,
-                    "x_conversation_id": call_id,
-                    "store": "1",
-                },
-            )
-        j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-        text = (j.get("text") or "").strip()
-        if text:
-            live_store.add_text(call_id, text)
-    except Exception:
-        pass
+    return audioop.ulaw2lin(mu, 2)  # 16-bit PCM @ 8k
 
 
 def _get_audio_b64(evt: dict) -> str | None:
@@ -78,9 +40,6 @@ async def telnyx_stream(ws: WebSocket):
     sink = audio_sinks.open(call_id, settings.AUDIO_DIR, ext_id)
     await live_store.set_ext_id(call_id, ext_id)
 
-    buf = bytearray()
-    last_flush = time.perf_counter()
-
     try:
         while True:
             raw = await ws.receive_text()
@@ -97,21 +56,16 @@ async def telnyx_stream(ws: WebSocket):
                 mu = base64.b64decode(b64)
                 pcm8k = mulaw_to_lin16(mu)
                 if pcm8k:
+                    # 1) immer Audio-Append (eine Datei pro Call)
                     sink.append_pcm8k_lin16(pcm8k)
-                    buf.extend(pcm8k)
-                if (time.perf_counter() - last_flush) >= CHUNK_SEC and buf:
-                    chunk = bytes(buf)
-                    buf.clear()
-                    last_flush = time.perf_counter()
-                    asyncio.create_task(flush_and_transcribe(call_id, chunk))
+                    try:
+                        async with SessionLocal() as db:
+                            await append_audio_chunk(db, call_id, ext_id, pcm8k, meta={"source": "telnyx"})
+                    except Exception:
+                        pass
                 continue
 
             if et == "stop":
-                if buf:
-                    try:
-                        await flush_and_transcribe(call_id, bytes(buf))
-                    except Exception:
-                        pass
                 break
 
     except WebSocketDisconnect:

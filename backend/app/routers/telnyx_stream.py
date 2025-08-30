@@ -1,15 +1,14 @@
-# app/routers/telnyx_stream.py
 from __future__ import annotations
 
 import asyncio
-import audioop
 import base64
-import httpx
 import io
 import json
 import time
 import wave
 
+import audioop
+import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..config import settings
@@ -20,7 +19,7 @@ from ..state.live_store import live_store
 log = setup_logging()
 router = APIRouter()
 
-TRANSCRIBE_URL = f"{settings.PUBLIC_BASE}/transcribe?store=0"
+BASE_TRANSCRIBE_URL = f"{settings.PUBLIC_BASE}/transcribe"
 CHUNK_SEC = 1.0
 VERBOSE_WS = False
 
@@ -43,8 +42,17 @@ async def flush_and_transcribe(call_id: str, pcm8k: bytes) -> None:
             w.setframerate(16000)
             w.writeframes(new)
         files = {"file": ("chunk.wav", buf.getvalue(), "audio/wav")}
+        url = f"{BASE_TRANSCRIBE_URL}?store=1"
         async with httpx.AsyncClient(timeout=60.0) as c:
-            r = await c.post(TRANSCRIBE_URL, files=files, headers={"x-conversation-id": call_id})
+            r = await c.post(
+                url,
+                files=files,
+                headers={
+                    "x-conversation-id": call_id,
+                    "x_conversation_id": call_id,
+                    "store": "1",
+                },
+            )
         j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         text = (j.get("text") or "").strip()
         if text:
@@ -68,6 +76,7 @@ async def telnyx_stream(ws: WebSocket):
     call_id = ws.query_params.get("call_id") or "unknown"
     ext_id = ws.query_params.get("ext_id") or settings.EXTERNAL_CALL_ID
     sink = audio_sinks.open(call_id, settings.AUDIO_DIR, ext_id)
+    await live_store.set_ext_id(call_id, ext_id)
 
     buf = bytearray()
     last_flush = time.perf_counter()

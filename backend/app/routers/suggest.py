@@ -1,4 +1,3 @@
-# app/routers/suggest.py
 import glob
 import os
 
@@ -26,8 +25,8 @@ async def suggest(call_id: str = Query(...), save: bool = Query(default=True),
     payload = [{"role": "user", "content": text}]
     headers = {"Content-Type": "application/json", "x-conversation-id": x_conversation_id or call_id}
     async with httpx.AsyncClient(timeout=30.0, headers=headers) as c:
-        r = await c.post(ANALYZE_URL, json=payload)
-        r.raise_for_status()
+        r = await c.post(ANALYZE_URL, json=payload);
+        r.raise_for_status();
         data = r.json()
     return {"suggestions": data.get("suggestions", []), "trafficLight": data.get("trafficLight", {})}
 
@@ -59,8 +58,8 @@ async def suggest_audio(ext_id: str = Query(...), x_conversation_id: str | None 
     payload = [{"role": "user", "content": text}]
     headers = {"Content-Type": "application/json", "x-conversation-id": x_conversation_id or ext_id}
     async with httpx.AsyncClient(timeout=60.0, headers=headers) as c:
-        r = await c.post(ANALYZE_URL, json=payload)
-        r.raise_for_status()
+        r = await c.post(ANALYZE_URL, json=payload);
+        r.raise_for_status();
         data = r.json()
     return {"suggestions": data.get("suggestions", []), "trafficLight": data.get("trafficLight", {}),
             "source": {"ext_id": ext_id, "audio": os.path.basename(audio_path)}}

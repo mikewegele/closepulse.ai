@@ -1,9 +1,9 @@
-# app/routers/telnyx_incoming.py (nur relevante Änderung im initiated-Block)
 from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Request
 
+from .telnyx_stream import close_audio_for_session
 from ..config import settings
 from ..logging import setup_logging
 from ..services.snapshot import save_snapshot
@@ -39,17 +39,18 @@ async def telnyx_incoming(req: Request):
                 r1 = await c.post(f"https://api.telnyx.com/v2/calls/{cid_path}/actions/answer", json=payload_answer)
                 if 200 <= r1.status_code < 300:
                     answered_sessions.add(sess_id)
+                    await live_store.set_ext_id(sess_id, ext_id)
         except Exception:
             pass
 
-    if et == "call.hangup":
+    if et == "call.hangup" and sess_id:
         try:
             await save_snapshot(sess_id, reason="hangup")
         except Exception:
             pass
         finally:
-            from .telnyx_stream import close_audio_for_session
             await close_audio_for_session(sess_id)
+            await live_store.mark_ended(sess_id)
             live_store.clear(sess_id)
             answered_sessions.discard(sess_id)
 

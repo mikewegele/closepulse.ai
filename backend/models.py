@@ -14,7 +14,7 @@ class Message(Base):
     __tablename__ = "messages"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     conversation_id: Mapped[str] = mapped_column(String(64))
-    external_id: Mapped[str] = mapped_column(String(64))
+    external_id: Mapped[str] = mapped_column(String(64), default="")
     role: Mapped[str] = mapped_column(String(32))  # "user"
     content: Mapped[str] = mapped_column(Text)  # anonymisierter Transkript-Text
     source: Mapped[Optional[str]] = mapped_column(String(32), default=None)

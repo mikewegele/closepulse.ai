@@ -1,11 +1,10 @@
 import time
 import wave
 from io import BytesIO
-from typing import Optional
 
 import audioop
 import openai
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header
+from fastapi import APIRouter, HTTPException, File, UploadFile, Header
 
 from ..config import settings
 from ..logging import setup_logging
@@ -13,95 +12,66 @@ from ..logging import setup_logging
 log = setup_logging()
 router = APIRouter()
 
-TARGET_RATE = 16000
-TARGET_WIDTH = 2
-TARGET_CHANNELS = 1
-MIN_SAMPLES = 3200  # ~0.2s
+TARGET_SR = 16000
 
 
-def _force_wav_16k_mono_s16(raw: bytes) -> bytes:
-    bio_in = BytesIO(raw)
+def _to_wav16k_mono_with_padding(raw_wav: bytes, pad_ms: int = 250) -> bytes:
     try:
-        with wave.open(bio_in, "rb") as r:
+        bio = BytesIO(raw_wav)
+        with wave.open(bio, "rb") as r:
             ch = r.getnchannels()
             sw = r.getsampwidth()
-            fr = r.getframerate()
-            n = r.getnframes()
-            if n <= 0:
-                return b""
-            pcm = r.readframes(n)
-
+            sr = r.getframerate()
+            frames = r.readframes(r.getnframes())
         if ch == 2:
-            pcm = audioop.tomono(pcm, sw, 1.0, 1.0);
+            frames = audioop.tomono(frames, sw, 0.5, 0.5)
             ch = 1
-        elif ch != 1:
-            pcm = audioop.tomono(pcm, sw, 1.0, 0.0);
-            ch = 1
-
-        if sw != TARGET_WIDTH:
-            pcm = audioop.lin2lin(pcm, sw, TARGET_WIDTH);
-            sw = TARGET_WIDTH
-
-        if fr != TARGET_RATE:
-            pcm, _ = audioop.ratecv(pcm, TARGET_WIDTH, TARGET_CHANNELS, fr, TARGET_RATE, None);
-            fr = TARGET_RATE
-
+        if sr != TARGET_SR:
+            frames = audioop.ratecv(frames, sw, ch, sr, TARGET_SR, None)[0]
+            sr = TARGET_SR
+        pad_bytes = int(pad_ms * TARGET_SR / 1000) * 2
+        silence = b"\x00" * pad_bytes
+        frames = silence + frames + silence
         out = BytesIO()
         with wave.open(out, "wb") as w:
-            w.setnchannels(TARGET_CHANNELS)
-            w.setsampwidth(TARGET_WIDTH)
-            w.setframerate(TARGET_RATE)
-            w.writeframes(pcm)
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(TARGET_SR)
+            w.writeframes(frames)
         return out.getvalue()
-    except Exception:
-        return b""
+    except Exception as e:
+        log.warning("normalize/pad failed: %s", e)
+        return raw_wav
 
 
 @router.post("/transcribe")
 async def transcribe(
         file: UploadFile = File(...),
-        x_conversation_id: Optional[str] = Header(default=None),
+        x_conversation_id: str | None = Header(default=None),
 ):
     t0 = time.perf_counter()
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="No audio payload")
+    wav_bytes = _to_wav16k_mono_with_padding(raw, pad_ms=250)
     try:
-        raw = await file.read()
-        if not raw:
-            raise HTTPException(status_code=422, detail="No audio payload")
-
-        wav_bytes = _force_wav_16k_mono_s16(raw)
-        if not wav_bytes:
-            raise HTTPException(status_code=400, detail="Unsupported or corrupted audio")
-
         with wave.open(BytesIO(wav_bytes), "rb") as r:
-            if r.getnframes() < MIN_SAMPLES:
-                # zu kurz -> kein Fehler, aber auch kein Text
-                return {"text": "", "duration": time.perf_counter() - t0, "conversation_id": x_conversation_id}
-
-        bio = BytesIO(wav_bytes);
-        bio.seek(0)
+            if r.getnframes() < int(0.8 * TARGET_SR):
+                return {"text": "", "duration": time.perf_counter() - t0, "conversation_id": x_conversation_id,
+                        "note": "too short for reliable ASR"}
+    except Exception as e:
+        raise HTTPException(400, f"Invalid WAV: {e}")
+    lang = getattr(settings, "TRANSCRIBE_LANG", None) or "de"
+    try:
         tr = openai.audio.transcriptions.create(
-            file=("chunk.wav", bio, "audio/wav"),
+            file=("chunk.wav", BytesIO(wav_bytes), "audio/wav"),
             model=settings.TRANSCRIBE_MODEL,
-            # language=settings.TRANSCRIBE_LANG,  # optional
+            language=lang,
         )
         text = (getattr(tr, "text", "") or "").strip()
         return {"text": text, "duration": time.perf_counter() - t0, "conversation_id": x_conversation_id}
-    except HTTPException:
-        raise
     except openai.BadRequestError as e:
         raise HTTPException(status_code=400, detail=f"OpenAI rejected audio: {e}") from e
     except Exception as e:
         log.exception("transcribe failed: %s", e)
         raise HTTPException(status_code=500, detail=f"transcribe failed: {e}") from e
-
-
-@router.get("/audio/_config")
-def audio_config():
-    import os
-    from ..config import settings
-    return {
-        "cwd": os.getcwd(),
-        "AUDIO_DIR": getattr(settings, "AUDIO_DIR", "./audio"),
-        "recordings_exists": os.path.isdir("./recordings"),
-        "audio_exists": os.path.isdir("./audio"),
-    }

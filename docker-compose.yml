@@ -9,11 +9,14 @@ services:
       --loop uvloop --http httptools
       --limit-max-requests 10000
     env_file: [ .env ]
+    environment:
+      - AUDIO_DIR=/app/recordings        # wichtig!
+      # - WS_BASE=wss://SETZE_MICH_NACH_LOGS  # kommt in Schritt 4
+    volumes:
+      - ./backend/recordings:/app/recordings
     ports:
       - "8000:8000"
     restart: unless-stopped
-
-
 
   cloudflared:
     image: cloudflare/cloudflared:latest

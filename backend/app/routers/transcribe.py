@@ -93,3 +93,15 @@ async def transcribe(
     except Exception as e:
         log.exception("transcribe failed: %s", e)
         raise HTTPException(status_code=500, detail=f"transcribe failed: {e}") from e
+
+
+@router.get("/audio/_config")
+def audio_config():
+    import os
+    from ..config import settings
+    return {
+        "cwd": os.getcwd(),
+        "AUDIO_DIR": getattr(settings, "AUDIO_DIR", "./audio"),
+        "recordings_exists": os.path.isdir("./recordings"),
+        "audio_exists": os.path.isdir("./audio"),
+    }

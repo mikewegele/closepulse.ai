@@ -1,54 +1,77 @@
 import time
+import wave
 from io import BytesIO
-from typing import Optional
 
+import audioop
 import openai
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header, BackgroundTasks, Query
+from fastapi import APIRouter, HTTPException, File, UploadFile, Header
 
 from ..config import settings
 from ..logging import setup_logging
-from ..services.anonymize import anonymize_and_store
-from ..utils import safe_mime_from_upload
 
 log = setup_logging()
 router = APIRouter()
+
+TARGET_SR = 16000
+
+
+def _to_wav16k_mono_with_padding(raw_wav: bytes, pad_ms: int = 250) -> bytes:
+    try:
+        bio = BytesIO(raw_wav)
+        with wave.open(bio, "rb") as r:
+            ch = r.getnchannels()
+            sw = r.getsampwidth()
+            sr = r.getframerate()
+            frames = r.readframes(r.getnframes())
+        if ch == 2:
+            frames = audioop.tomono(frames, sw, 0.5, 0.5)
+            ch = 1
+        if sr != TARGET_SR:
+            frames = audioop.ratecv(frames, sw, ch, sr, TARGET_SR, None)[0]
+            sr = TARGET_SR
+        pad_bytes = int(pad_ms * TARGET_SR / 1000) * 2
+        silence = b"\x00" * pad_bytes
+        frames = silence + frames + silence
+        out = BytesIO()
+        with wave.open(out, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(TARGET_SR)
+            w.writeframes(frames)
+        return out.getvalue()
+    except Exception as e:
+        log.warning("normalize/pad failed: %s", e)
+        return raw_wav
 
 
 @router.post("/transcribe")
 async def transcribe(
         file: UploadFile = File(...),
-        x_conversation_id: Optional[str] = Header(default=None),
-        background_tasks: BackgroundTasks = None,
-        store: bool = Query(default=False),
+        x_conversation_id: str | None = Header(default=None),
 ):
     t0 = time.perf_counter()
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="No audio payload")
+    wav_bytes = _to_wav16k_mono_with_padding(raw, pad_ms=250)
     try:
-        raw = await file.read()
-        if not raw:
-            raise HTTPException(status_code=400, detail="Empty audio payload")
-        mime = safe_mime_from_upload(file)
-        name = file.filename or ("audio.webm" if "webm" in mime else "audio.wav")
-        wav_io = BytesIO(raw)
+        with wave.open(BytesIO(wav_bytes), "rb") as r:
+            if r.getnframes() < int(0.8 * TARGET_SR):
+                return {"text": "", "duration": time.perf_counter() - t0, "conversation_id": x_conversation_id,
+                        "note": "too short for reliable ASR"}
+    except Exception as e:
+        raise HTTPException(400, f"Invalid WAV: {e}")
+    lang = getattr(settings, "TRANSCRIBE_LANG", None) or "de"
+    try:
         tr = openai.audio.transcriptions.create(
-            file=(name, wav_io, mime),
+            file=("chunk.wav", BytesIO(wav_bytes), "audio/wav"),
             model=settings.TRANSCRIBE_MODEL,
-            language=settings.TRANSCRIBE_LANG,
+            language=lang,
         )
         text = (getattr(tr, "text", "") or "").strip()
-        dt = time.perf_counter() - t0
-        mode = (getattr(settings, "STORE_MODE", "on_demand") or "on_demand").lower()
-        can_store = bool(store) and mode == "always"
-        log.info("/transcribe %.3fs store=%s mode=%s auto=%s cid=%s", dt, store, mode, "1" if can_store else "0",
-                 x_conversation_id or "")
-        if text and can_store:
-            if background_tasks is not None:
-                background_tasks.add_task(anonymize_and_store, text, mime, name, x_conversation_id)
-            else:
-                import asyncio
-                asyncio.create_task(anonymize_and_store(text, mime, name, x_conversation_id))
-        return {"text": text, "duration": dt, "conversation_id": x_conversation_id}
-    except HTTPException:
-        raise
+        return {"text": text, "duration": time.perf_counter() - t0, "conversation_id": x_conversation_id}
+    except openai.BadRequestError as e:
+        raise HTTPException(status_code=400, detail=f"OpenAI rejected audio: {e}") from e
     except Exception as e:
         log.exception("transcribe failed: %s", e)
         raise HTTPException(status_code=500, detail=f"transcribe failed: {e}") from e

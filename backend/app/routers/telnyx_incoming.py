@@ -3,10 +3,9 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, Request
 
-from .telnyx_stream import close_audio_for_session
 from ..config import settings
 from ..logging import setup_logging
-from ..services.snapshot import save_snapshot
+from ..services.snapshot_audio import save_snapshot_from_audio
 from ..state.live_store import live_store
 
 log = setup_logging()
@@ -45,12 +44,15 @@ async def telnyx_incoming(req: Request):
 
     if et == "call.hangup" and sess_id:
         try:
-            await save_snapshot(sess_id, reason="hangup")
+            # WICHTIG: zuerst Audio schließen/flushen
+            await close_audio_for_session(sess_id)
+            await live_store.mark_ended(sess_id)
+
+            # Danach komplette WAV transkribieren & speichern
+            await save_snapshot_from_audio(sess_id, reason="hangup")
         except Exception:
             pass
         finally:
-            await close_audio_for_session(sess_id)
-            await live_store.mark_ended(sess_id)
             live_store.clear(sess_id)
             answered_sessions.discard(sess_id)
 

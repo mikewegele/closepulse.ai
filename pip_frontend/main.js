@@ -15,7 +15,7 @@ function createWindow() {
         }
     });
 
-    win.loadFile('mini.html');
+    win.loadFile('index.html');
 }
 
 ipcMain.on('log', (_event, msg) => {

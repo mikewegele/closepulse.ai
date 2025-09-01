@@ -33,7 +33,7 @@ export function initToolbar() {
         // 🌙/☀️ Theme
         {
             id: "cp-theme",
-            emoji: () => (state.theme === "dark" ? "☀️" : "🌙"),
+            emoji: () => (state.theme === "dark" ? "⚪️" : "⚫"),
             title: "Theme umschalten",
             onclick: () => {
                 applyTheme(state.theme === "dark" ? "light" : "dark");
@@ -52,7 +52,7 @@ export function initToolbar() {
     // helper für theme & latency dynamisch
     const syncTheme = () => {
         const btn = document.getElementById("cp-theme");
-        if (btn) btn.textContent = state.theme === "dark" ? "☀️" : "🌙";
+        if (btn) btn.textContent = state.theme === "dark" ? "⚪️" : "⚫";
     };
 
     // Buttons rendern

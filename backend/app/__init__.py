@@ -5,7 +5,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from .config import settings
 from .db import init_models
 from .logging import setup_logging
-from .routers import telnyx_incoming, telnyx_stream, ws, transcribe, analyze, suggest, audio
+from .routers import transcribe, analyze, suggest, audio, local_stream
 
 log = setup_logging()
 
@@ -21,13 +21,11 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(GZipMiddleware, minimum_size=512)
 
-    app.include_router(telnyx_incoming.router)
-    app.include_router(telnyx_stream.router)
-    app.include_router(ws.router)
     app.include_router(transcribe.router)
     app.include_router(analyze.router)
     app.include_router(suggest.router)
     app.include_router(audio.router)
+    app.include_router(local_stream.router)
 
     @app.on_event("startup")
     async def _startup():

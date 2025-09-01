@@ -1,12 +1,13 @@
 # closepulse_agent.py
 import asyncio
 import json
-import numpy as np
 import os
-import sounddevice as sd
 import time
-import websockets
 from collections import deque
+
+import numpy as np
+import sounddevice as sd
+import websockets
 
 WS_URL = os.getenv("CP_WS_URL", "ws://127.0.0.1:8000/local/stream")
 EXT_ID = os.getenv("CP_EXT_ID", "EXT001")
@@ -63,7 +64,11 @@ async def stream_leg(leg, dev_name):
         uri = f"{WS_URL}?ext_id={EXT_ID}&leg={leg}&sr={TARGET_SR}"
         if os.getenv("CP_WS_INSECURE", "0") == "1" and uri.startswith("wss://"):
             uri = uri.replace("wss://", "ws://")
-        async with websockets.connect(uri, max_size=None) as ws:
+        async with websockets.connect(
+                uri,
+                max_size=None,
+                additional_headers={"Origin": "http://localhost:3000"}
+        ) as ws:
             hello = {"ext_id": EXT_ID, "leg": leg, "ts": time.time(), "sr": TARGET_SR}
             await ws.send(json.dumps(hello))
             while True:

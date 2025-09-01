@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile, Header
 
 from ..config import settings
 from ..logging import setup_logging
+from ..services.anonymize import anonymize_and_store
 
 log = setup_logging()
 router = APIRouter()
@@ -48,6 +49,7 @@ def _to_wav16k_mono_with_padding(raw_wav: bytes, pad_ms: int = 250) -> bytes:
 async def transcribe(
         file: UploadFile = File(...),
         x_conversation_id: str | None = Header(default=None),
+        store: int = Query(default=0),
 ):
     t0 = time.perf_counter()
     raw = await file.read()
@@ -69,6 +71,9 @@ async def transcribe(
             language=lang,
         )
         text = (getattr(tr, "text", "") or "").strip()
+        if store and text:
+            await anonymize_and_store(text=text, mime="text/plain", name=file.filename or "chunk.wav",
+                                      x_conversation_id=x_conversation_id)
         return {"text": text, "duration": time.perf_counter() - t0, "conversation_id": x_conversation_id}
     except openai.BadRequestError as e:
         raise HTTPException(status_code=400, detail=f"OpenAI rejected audio: {e}") from e

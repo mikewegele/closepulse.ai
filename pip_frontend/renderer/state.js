@@ -11,7 +11,7 @@ export const el = {
 // app state (persisted where needed)
 export const state = {
     showLatency: JSON.parse(localStorage.getItem("cp_showLatency") ?? "true"),
-    theme: localStorage.getItem("cp_theme") || "light",
+    theme: "dark",
     analyzeSupported: false,
     turns: [],
     askAborter: null,

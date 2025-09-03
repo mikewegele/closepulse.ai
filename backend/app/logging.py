@@ -1,5 +1,5 @@
 import logging
-from .config import settings
+from backend.config import settings
 
 
 def setup_logging():

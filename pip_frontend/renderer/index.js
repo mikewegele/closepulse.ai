@@ -40,7 +40,10 @@ function setSuggestions({s1, s2, s3, raw}) {
 }
 
 log('boot');
-autoStartAgentProc({ws: WS, ext: EXT}).then(() => log('agent:start:ok')).catch(e => log(`agent:start:err ${e}`));
+autoStartAgentProc({ws: WS, ext: EXT, lang: 'de'})
+    .then(() => log('agent:start:ok'))
+    .catch(e => log(`agent:start:err ${e}`));
+
 connectSuggestions(WS, EXT, setSuggestions);
 
 async function pollStatus() {
@@ -52,4 +55,4 @@ async function pollStatus() {
     setTimeout(pollStatus, 1200);
 }
 
-pollStatus();
+// pollStatus();

@@ -11,7 +11,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from models import LiveCall  # dein ORM-Modell
 from sqlalchemy import select
 
-from ..config import settings
+from backend.config import settings
 from ..db import SessionLocal
 from ..logging import setup_logging
 from ..services.audio_sink import audio_sinks

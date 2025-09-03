@@ -10,7 +10,7 @@ import httpx
 from fastapi import APIRouter, Query, Header, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from ..config import settings
+from backend.config import settings
 from ..logging import setup_logging
 
 log = setup_logging()

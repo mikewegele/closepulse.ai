@@ -6,7 +6,7 @@ from typing import Optional
 import openai
 from sqlalchemy import text
 
-from ..config import settings
+from backend.config import settings
 from ..db import SessionLocal
 from ..logging import setup_logging
 from ..services.anonymize import anonymize_and_store
@@ -74,7 +74,7 @@ async def save_snapshot_from_audio(call_id: str, reason: str = "hangup") -> int:
             log.info("snapshot_audio: no text -> skip store")
             return 0
         try:
-            from ..agents import runner, database_agent
+            from backend.agents_registration import runner, database_agent
             da_out = await runner.run(database_agent, [{"role": "user", "content": raw_text}])
             anonym = (getattr(da_out, "final_output", "") or "").strip()
         except Exception as e:

@@ -1,7 +1,7 @@
 import logging
 import time
 
-from ..agents import runner, database_agent
+from backend.agents_registration import runner, database_agent
 from ..db import SessionLocal
 from ..utils import add_message
 

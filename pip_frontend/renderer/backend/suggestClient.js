@@ -1,5 +1,6 @@
 // src/backend/suggestClient.js
 export function connectSuggestions(wsBase, ext, onSuggestions) {
+    console.log("TEST")
     if (!wsBase) return;
     const url = `${wsBase.replace(/\/$/, '')}/ws/suggest?ext=${encodeURIComponent(ext || 'default')}`;
     const ws = new WebSocket(url);

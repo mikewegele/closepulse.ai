@@ -4,8 +4,8 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Header
 
-from ..agents import runner, main_agent, traffic_light_agent, combo_agent
-from ..config import settings
+from backend.agents_registration import runner, main_agent, traffic_light_agent, combo_agent
+from backend.config import settings
 from ..schemas import ChatMessage, AnalyzeResponse
 from ..utils import system_date_message, with_timeout
 

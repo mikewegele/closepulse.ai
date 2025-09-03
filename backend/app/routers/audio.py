@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import text
 
-from ..config import settings
+from backend.config import settings
 from ..db import SessionLocal
 from ..services.snapshot_audio import _find_audio_path
 

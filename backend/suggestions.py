@@ -6,17 +6,13 @@ import time
 from datetime import datetime
 from typing import Dict, Any
 
-import openai
-from agents import Runner
 from fastapi import HTTPException
 
+from backend.agent_registration import runner
 from backend.closepulse_agents import combo_agent
 
 logging.basicConfig(level=os.environ.get("BACKEND_LOG_LEVEL", "INFO"))
 log = logging.getLogger("cp.backend")
-
-openai.api_key = os.environ.get("OPENAI_API_KEY", "")
-runner = Runner()
 
 
 def now_berlin() -> datetime:
@@ -58,6 +54,7 @@ async def make_suggestions(user_text: str) -> Dict[str, Any]:
     )
 
     raw = getattr(res, "final_output", "") or "{}"
+    print(raw)
     try:
         data = json.loads(raw)
     except Exception:

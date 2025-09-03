@@ -9,7 +9,7 @@ import wave
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from ..config import settings
+from backend.config import settings
 from ..logging import setup_logging
 
 log = setup_logging()

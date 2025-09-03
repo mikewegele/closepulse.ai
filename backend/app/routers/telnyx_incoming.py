@@ -3,7 +3,7 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, Request
 
-from ..config import settings
+from backend.config import settings
 from ..logging import setup_logging
 from ..services.snapshot_audio import save_snapshot_from_audio
 from ..state.live_store import live_store

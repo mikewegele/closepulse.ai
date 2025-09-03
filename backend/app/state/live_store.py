@@ -6,7 +6,7 @@ import tempfile
 import time
 from typing import Dict, Optional, Tuple
 
-from ..config import settings
+from backend.config import settings
 
 # Eine Zeile pro Call persistieren
 _PERSIST = str(getattr(settings, "PERSIST_LIVE_ONE_ROW", "1")).lower() in ("1", "true", "yes", "on")

@@ -23,7 +23,7 @@ if (!gotLock) {
 }
 
 let agentProc = null;
-let agentStarting = false; // Guard gegen Race-Conditions
+let agentStarting = false; // Start erlauben; Guard greift erst während Start
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -54,6 +54,36 @@ function resolveAgentCommand() {
     return {cmd: bin, args: []};
 }
 
+function killProcessTree(p) {
+    if (!p || !p.pid) return;
+    try {
+        if (process.platform !== 'win32') {
+            try {
+                process.kill(-p.pid, 'SIGTERM');
+            } catch {
+            }
+            setTimeout(() => {
+                try {
+                    process.kill(-p.pid, 'SIGKILL');
+                } catch {
+                }
+            }, 800);
+        } else {
+            try {
+                p.kill('SIGTERM');
+            } catch {
+            }
+            setTimeout(() => {
+                try {
+                    p.kill('SIGKILL');
+                } catch {
+                }
+            }, 800);
+        }
+    } catch {
+    }
+}
+
 async function startAgent({ws, ext, mic, spk, loopback, lang}) {
     if (agentProc || agentStarting) return true;
     agentStarting = true;
@@ -66,7 +96,11 @@ async function startAgent({ws, ext, mic, spk, loopback, lang}) {
         if (lang) full.push('--lang', lang);
 
         const env = {...process.env};
-        agentProc = spawn(cmd, full, {stdio: ['ignore', 'pipe', 'pipe'], env});
+        agentProc = spawn(cmd, full, {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env,
+            detached: process.platform !== 'win32', // eigene Prozessgruppe auf Unix
+        });
 
         agentProc.stdout.on('data', (d) => console.log('[agent]', d.toString().trim()));
         agentProc.stderr.on('data', (d) => console.error('[agent-err]', d.toString().trim()));
@@ -88,12 +122,20 @@ async function startAgent({ws, ext, mic, spk, loopback, lang}) {
 
 function stopAgent() {
     if (!agentProc) return true;
-    try {
-        agentProc.kill('SIGTERM');
-    } catch {
-    }
+    const p = agentProc;
     agentProc = null;
-    return true;
+    return new Promise((resolve) => {
+        let resolved = false;
+        const done = () => {
+            if (!resolved) {
+                resolved = true;
+                resolve(true);
+            }
+        };
+        p.once('exit', done);
+        killProcessTree(p);
+        setTimeout(done, 1500);
+    });
 }
 
 function listDevices() {
@@ -143,7 +185,32 @@ ipcMain.handle('agent:list', async () => {
 ipcMain.handle('agent:status', async () => agentStatus());
 ipcMain.handle('env:platform', async () => process.platform);
 
-app.whenReady().then(createWindow);
+function setupSignalHandlers() {
+    const shutdown = async () => {
+        try {
+            await stopAgent();
+        } catch {
+        }
+        process.exit(0);
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+    process.on('uncaughtException', (e) => {
+        console.error('[main] uncaught', e);
+        shutdown();
+    });
+    process.on('exit', () => {
+        try {
+            stopAgent();
+        } catch {
+        }
+    });
+}
+
+app.whenReady().then(() => {
+    setupSignalHandlers();
+    createWindow();
+});
 
 app.on('window-all-closed', () => {
     try {

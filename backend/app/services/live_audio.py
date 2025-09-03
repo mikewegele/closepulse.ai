@@ -7,7 +7,7 @@ from models import LiveCall
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..config import settings
+from backend.config import settings
 from ..logging import setup_logging
 
 log = setup_logging()

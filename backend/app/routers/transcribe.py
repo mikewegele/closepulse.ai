@@ -6,7 +6,7 @@ import audioop
 import openai
 from fastapi import APIRouter, HTTPException, File, UploadFile, Header
 
-from ..config import settings
+from backend.config import settings
 from ..logging import setup_logging
 from ..services.anonymize import anonymize_and_store
 

@@ -1,24 +1,16 @@
 {
   "name": "closepulse-mini",
-  "private": true,
   "version": "0.1.0",
   "main": "main.js",
+  "type": "module",
   "scripts": {
-    "mock": "node server/server.js",
-    "dev": "electron .",
-    "build": "electron-builder"
+    "dev": "cross-env PYTHON=../.venv/bin/python3 dotenv -e .env -- electron .",
+    "dev:mac": "cross-env PYTHON=../.venv/bin/python3 dotenv -e .env -- electron .",
+    "dev:win": "cross-env PYTHON=..\\.venv\\Scripts\\python.exe dotenv -e .env -- electron ."
   },
   "devDependencies": {
-    "electron": "^30.5.1"
-  },
-  "description": "",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "express": "^5.1.0",
-    "multer": "^2.0.2",
-    "sip.js": "^0.21.2"
+    "electron": "^30.0.0",
+    "dotenv-cli": "^7.4.1",
+    "cross-env": "^7.0.3"
   }
 }

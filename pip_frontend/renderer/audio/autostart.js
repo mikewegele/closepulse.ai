@@ -1,4 +1,6 @@
 // renderer/audio/autostart.js
+import {startPipelines} from "./pipeline.js";
+
 function pick(devices, kind, prefs = [], exclude = []) {
     const list = devices.filter(d => d.kind === kind);
     const ex = (label) => exclude.some(rx => rx.test(label));
@@ -6,8 +8,7 @@ function pick(devices, kind, prefs = [], exclude = []) {
         const f = list.find(d => d.label && rx.test(d.label) && !ex(d.label));
         if (f) return f;
     }
-    const f = list.find(d => d.label && !ex(d.label));
-    return f || list[0];
+    return list.find(d => d.label && !ex(d.label)) || list[0];
 }
 
 async function getDevicesWithPermission() {
@@ -17,7 +18,7 @@ async function getDevicesWithPermission() {
     return devices;
 }
 
-export async function autoStartAgent({ws, ext}) {
+export async function autoStartAgent({ws, ext, onStatus, onSuggestions}) {
     const plat = await window.electronAPI.getPlatform();
     const devices = await getDevicesWithPermission();
 
@@ -28,18 +29,17 @@ export async function autoStartAgent({ws, ext}) {
             : [/monitor/i, /pipewire/i, /pulse/i];
 
     const excludeLoopback = [/blackhole/i, /stereo mix/i, /vb[- ]?cable/i, /monitor/i];
-
     const micPrefs = [/headset/i, /jabra/i, /plantronics/i, /airpods/i, /bose/i, /shure/i, /yeti/i, /rode/i, /macbook.*microphone/i, /built[- ]?in/i];
-    const spkPrefs = [/headset/i, /jabra/i, /plantronics/i, /airpods/i, /bose/i, /sony|wh[- ]?\d{3,}/i, /speaker/i];
 
     const mic = pick(devices, 'audioinput', micPrefs, excludeLoopback);
-    const spk = pick(devices, 'audiooutput', spkPrefs, []);
     const loopback = devices.find(d => d.kind === 'audioinput' && loopbackHints.some(rx => rx.test(d.label || '')));
 
-    const args = {ws, ext};
-    if (mic?.label) args.mic = mic.label;
-    if (spk?.label) args.spk = spk.label;
-    if (loopback?.label) args.loopback = loopback.label;
-
-    await window.electronAPI.agentStart(args);
+    await startPipelines({
+        ext,
+        wsBase: ws,
+        micLabel: mic?.label,
+        loopbackLabel: loopback?.label,
+        onStatus,
+        onSuggestions
+    });
 }

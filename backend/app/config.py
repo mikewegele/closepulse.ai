@@ -1,26 +1,15 @@
-from typing import Optional
+from typing import List
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    OPENAI_API_KEY: str
-    TELNYX_API_KEY: str
-    DATABASE_URL: str = "sqlite+aiosqlite:///./closepulse.db"
-    CLOSEPULSE_CORS: Optional[str] = None
-    ASK_TIMEOUT: float = 25.0
-    TL_TIMEOUT: float = 15.0
-    TRANSCRIBE_MODEL: str = "whisper-1"
-    TRANSCRIBE_LANG: str = "de"
-    LOG_LEVEL: str = "INFO"
-    WS_BASE: str
-    PUBLIC_BASE: str
-    STORE_MODE: str = "on_demand"  # "always" | "on_demand" | "never"
-    EXTERNAL_CALL_ID: str
-    AUDIO_DIR: str
-
-    class Config:
-        env_file = ".env"
-
-
-settings = Settings()
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_prefix="CP_"  # nur Variablen mit CP_ werden eingelesen
+    )
+    openai_api_key: str
+    allowed_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    realtime_model: str = "gpt-4o-mini-transcribe"

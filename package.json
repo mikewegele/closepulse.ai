@@ -5,7 +5,7 @@
   "author": "closepulse.ai Team",
   "license": "MIT",
   "scripts": {
-    "dev": "npm run frontend",
+    "dev": "cd pip_frontend && cross-env PYTHON=../.venv/bin/python3 dotenv -e .env -- electron .",
     "live": "cd live_backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload\n",
     "macos": "cd pip_frontend && CP_WS_URL=\"ws://127.0.0.1:8000/local/stream\" \\\nCP_EXT_ID=\"DEMO42\" \\                                    \nCP_MIC_NAME=\"MacBook Pro-Mikrofon\" \\\nCP_SPK_NAME=\"BlackHole 2ch\" \\\npython3 closepulse_agent.py",
     "backend": "docker compose up -d api",

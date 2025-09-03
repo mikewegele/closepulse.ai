@@ -47,7 +47,6 @@ function resolveAgentCommand() {
             args: [path.join(__dirname, 'closepulse_agent.py')],
         };
     }
-
     const bin =
         process.platform === 'win32'
             ? path.join(process.resourcesPath, 'closepulse_agent_win.exe')
@@ -55,7 +54,7 @@ function resolveAgentCommand() {
     return {cmd: bin, args: []};
 }
 
-async function startAgent({ws, ext, mic, spk, loopback}) {
+async function startAgent({ws, ext, mic, spk, loopback, lang}) {
     if (agentProc || agentStarting) return true;
     agentStarting = true;
     try {
@@ -64,6 +63,7 @@ async function startAgent({ws, ext, mic, spk, loopback}) {
         if (mic) full.push('--mic', mic);
         if (spk) full.push('--spk', spk);
         if (loopback) full.push('--loopback', loopback);
+        if (lang) full.push('--lang', lang);
 
         const env = {...process.env};
         agentProc = spawn(cmd, full, {stdio: ['ignore', 'pipe', 'pipe'], env});

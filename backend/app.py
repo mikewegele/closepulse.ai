@@ -1,3 +1,4 @@
+# backend/app.py (Auszug)
 import asyncio
 import json
 import logging
@@ -72,6 +73,7 @@ async def ws_suggest(ws: WebSocket):
 @app.websocket("/ws/transcript")
 async def ws_transcript(ws: WebSocket):
     ext = ws.query_params.get("ext") or "default"
+    conversation_id = ws.query_params.get("conv")  # optional
     await ws.accept()
     log.info("[B] transcript:connect ext=%s", ext)
     try:
@@ -82,16 +84,18 @@ async def ws_transcript(ws: WebSocket):
                 data = json.loads(raw)
             except:
                 continue
+
             role = data.get("role")
             text = (data.get("text") or "").strip()
-            log.info("[B] transcript:%s role=%s", text, role)
-            if role == "customer" and text:
+
+            if role == "agent" and text:
                 t0 = time.perf_counter()
                 async with _lock(ext):
-                    sug = await asyncio.get_event_loop().run_in_executor(None, make_suggestions, text)
-                dt = int((time.perf_counter() - t0) * 1000)
+                    sug = await make_suggestions(text)  # <-- hier der Fix
+                dt = time.perf_counter() - t0
+
                 snip = (text[:80] + ("…" if len(text) > 80 else "")).replace("\n", " ")
-                log.info('[B] suggest ext=%s dt_ms=%d text="%s"', ext, dt, snip)
+                log.info('[B] suggest ext=%s dt_ms=%d text="%s"', ext, int(dt * 1000), snip)
                 await _broadcast(ext, sug)
     except WebSocketDisconnect:
         log.info("[B] transcript:disconnect ext=%s", ext)

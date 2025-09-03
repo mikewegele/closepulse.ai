@@ -1,3 +1,4 @@
+// index.js
 import {el} from "./state.js";
 import {initTheme} from "./ui/theme.js";
 import {initToolbar} from "./ui/toolbar.js";
@@ -28,12 +29,14 @@ function setDot(on) {
     log(on ? 'agent:on' : 'agent:off');
 }
 
-function setSuggestions({s1, s2, s3}) {
+function setSuggestions({s1, s2, s3, raw}) {
     if (el.s1) el.s1.textContent = s1 || '';
     if (el.s2) el.s2.textContent = s2 || '';
     if (el.s3) el.s3.textContent = s3 || '';
+    const tl = raw?.trafficLight?.response || '';
+    document.body.dataset.tl = tl;
     const hint = [s1, s2, s3].filter(Boolean).map(s => `"${s.slice(0, 40)}"`).join(' | ');
-    log(`suggest ${hint}`);
+    log(`suggest ${hint}${tl ? ` (tl:${tl})` : ''}`);
 }
 
 log('boot');

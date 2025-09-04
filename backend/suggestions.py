@@ -55,6 +55,7 @@ async def make_suggestions(user_text: str) -> Dict[str, Any]:
     )
 
     raw = getattr(res, "final_output", "") or "{}"
+    log.info(raw)
     try:
         data = json.loads(raw)
     except Exception:

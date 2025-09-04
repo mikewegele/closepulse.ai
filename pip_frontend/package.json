@@ -6,11 +6,35 @@
   "scripts": {
     "dev": "cross-env PYTHON=../.venv/bin/python3 dotenv -e .env -- electron .",
     "dev:mac": "cross-env PYTHON=../.venv/bin/python3 dotenv -e .env -- electron .",
-    "dev:win": "cross-env PYTHON=..\\.venv\\Scripts\\python.exe dotenv -e .env -- electron ."
+    "dev:win": "cross-env PYTHON=..\\.venv\\Scripts\\python.exe dotenv -e .env -- electron .",
+    "build": "electron-builder"
   },
   "devDependencies": {
     "electron": "^30.0.0",
     "dotenv-cli": "^7.4.1",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "ai.closepulse.app",
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "frontend/**",
+      "backend/**",
+      "scripts/**"
+    ],
+    "extraResources": [
+      {
+        "from": "scripts/",
+        "to": "scripts",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }

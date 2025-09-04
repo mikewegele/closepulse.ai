@@ -22,7 +22,7 @@ if (!gotLock) {
 }
 
 let agentProc = null;
-let agentStarting = true;
+let agentStarting = false;
 
 function createWindow() {
     const win = new BrowserWindow({

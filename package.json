@@ -9,9 +9,12 @@
     "app2": "concurrently -n fe,be,stt -c yellow,blue,green \"npm run backend\" \"npm run client\" \"npm run agent\"",
     "backend": "uvicorn backend.app:app --reload --port 8000",
     "client": "cd pip_frontend && npm run dev",
-    "agent": "cd pip_frontend && python3 closepulse_agent.py --ws ws://127.0.0.1:8000 --ext EXT_FIXED_ID --mic 'MacBook Pro-Mikrofon' --lang de",
-    "kill": "lsof -ti :8000 | xargs kill -9\n",
-    "mic": "lsof | grep CoreAudio | grep -i Python | awk '{print $2}' | xargs kill -9\n"
+    "agent:mac": "cd pip_frontend && python3 closepulse_agent.py --ws ws://127.0.0.1:8000 --ext EXT_FIXED_ID --mic 'MacBook Pro-Mikrofon' --lang de",
+    "agent:win": "cd pip_frontend && python closepulse_agent.py --ws ws://127.0.0.1:8000 --ext EXT_FIXED_ID --mic \"Stereo Mix\" --lang de",
+    "kill:mac": "lsof -ti :8000 | xargs kill -9",
+    "kill:win": "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :8000') do taskkill /PID %a /F",
+    "mic:mac": "lsof | grep CoreAudio | grep -i Python | awk '{print $2}' | xargs kill -9",
+    "mic:win": "tasklist /FI \"IMAGENAME eq python.exe\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

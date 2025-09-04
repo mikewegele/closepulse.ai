@@ -53,28 +53,11 @@ def health():
     return {"ok": True}
 
 
-@app.websocket("/ws/suggest")
-async def ws_suggest(ws: WebSocket):
-    ext = ws.query_params.get("ext") or "default"
-    await ws.accept()
-    _room(ext).add(ws)
-    log.info("[B] suggest:connect ext=%s subs=%d", ext, len(_room(ext)))
-    try:
-        while True:
-            await ws.receive_text()  # keepalive
-    except WebSocketDisconnect:
-        _room(ext).discard(ws)
-        log.info("[B] suggest:disconnect ext=%s subs=%d", ext, len(_room(ext)))
-    except Exception as e:
-        _room(ext).discard(ws)
-        log.warning("[B] suggest:error ext=%s err=%s", ext, e)
-
-
 @app.websocket("/ws/transcript")
 async def ws_transcript(ws: WebSocket):
     ext = ws.query_params.get("ext") or "default"
-    conversation_id = ws.query_params.get("conv")  # optional
     await ws.accept()
+    _room(ext).add(ws)  # <— HINZUFÜGEN!
     log.info("[B] transcript:connect ext=%s", ext)
     try:
         while True:
@@ -91,7 +74,7 @@ async def ws_transcript(ws: WebSocket):
             if role == "agent" and text:
                 t0 = time.perf_counter()
                 async with _lock(ext):
-                    sug = await make_suggestions(text)  # <-- hier der Fix
+                    sug = await make_suggestions(text)
                 dt = time.perf_counter() - t0
 
                 snip = (text[:80] + ("…" if len(text) > 80 else "")).replace("\n", " ")
@@ -99,5 +82,5 @@ async def ws_transcript(ws: WebSocket):
                 await _broadcast(ext, sug)
     except WebSocketDisconnect:
         log.info("[B] transcript:disconnect ext=%s", ext)
-    except Exception as e:
-        log.warning("[B] transcript:error ext=%s err=%s", ext, e)
+    finally:
+        _room(ext).discard(ws)  # <— AUFRÄUMEN!

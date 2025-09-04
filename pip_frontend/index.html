@@ -4,18 +4,19 @@
     <meta charset="utf-8"/>
     <title>closepulse mini</title>
     <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    connect-src 'self'
-      http://localhost:8000 ws://localhost:*
-      https://api.closepulse192.win wss://api.closepulse192.win
-      https://*.trycloudflare.com wss://*.trycloudflare.com;
-    img-src 'self' data: blob:;
-    media-src 'self' blob:;
-    font-src 'self' data:;
-    script-src 'self' 'unsafe-inline';
-    style-src 'self' 'unsafe-inline';
-    frame-ancestors 'self';
-  ">
+  default-src 'self';
+  connect-src 'self'
+    http://localhost:* ws://localhost:*
+    http://127.0.0.1:* ws://127.0.0.1:*
+    https://api.closepulse192.win wss://api.closepulse192.win
+    https://*.trycloudflare.com wss://*.trycloudflare.com;
+  img-src 'self' data: blob:;
+  media-src 'self' blob:;
+  font-src 'self' data:;
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  frame-ancestors 'self';
+">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,11 +25,10 @@
     <button id="s1" class="btn"></button>
     <button id="s2" class="btn"></button>
     <button id="s3" class="btn"></button>
-    <div id="last" class="last"></div>
 </div>
 <script>
     window.__CALL_ID = "EXT_FIXED_ID";
-    window.__API_BASE = 'http://127.0.0.1:8000';
+    window.__API_BASE = 'http://localhost:8000';
 </script>
 
 <script type="module" src="./renderer/index.js"></script>

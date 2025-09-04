@@ -26,9 +26,10 @@ let agentProc = null;
 let agentStarting = false;
 let quitting = false;
 let stoppingPromise = null;
+let mainWin = null;
 
 function createWindow() {
-    const win = new BrowserWindow({
+    mainWin = new BrowserWindow({
         width: 360,
         height: 500,
         frame: false,
@@ -39,7 +40,18 @@ function createWindow() {
             nodeIntegration: false,
         },
     });
-    win.loadFile('index.html');
+
+    // Always-on-Top standardmäßig aktivieren
+    if (process.platform === 'darwin') {
+        mainWin.setAlwaysOnTop(true, 'screen-saver');
+        mainWin.setVisibleOnAllWorkspaces(true, {visibleOnFullScreen: true});
+        mainWin.setFullScreenable(false);
+    } else {
+        mainWin.setAlwaysOnTop(true);
+    }
+
+    mainWin.loadFile('index.html');
+    return mainWin;
 }
 
 function resolveAgentCommand() {
@@ -247,6 +259,20 @@ ipcMain.handle('agent:list', async () => {
 });
 ipcMain.handle('agent:status', async () => agentStatus());
 ipcMain.handle('env:platform', async () => process.platform);
+
+// Always-on-Top via IPC toggeln (passt zu preload.cjs -> setAlwaysOnTop)
+ipcMain.handle('win:set-aot', (_e, on) => {
+    if (!mainWin) return false;
+    const enable = !!on;
+    if (process.platform === 'darwin') {
+        mainWin.setAlwaysOnTop(enable, 'screen-saver');
+        mainWin.setVisibleOnAllWorkspaces(enable, {visibleOnFullScreen: true});
+        mainWin.setFullScreenable(!enable);
+    } else {
+        mainWin.setAlwaysOnTop(enable);
+    }
+    return mainWin.isAlwaysOnTop();
+});
 
 async function gracefulAppQuit(appExitCode = 0) {
     if (quitting) return;

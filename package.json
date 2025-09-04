@@ -9,7 +9,7 @@
     "app2": "concurrently -n fe,be,stt -c yellow,blue,green \"npm run backend\" \"npm run client\" \"npm run agent\"",
     "backend": "uvicorn backend.app:app --reload --port 8000",
     "client": "cd pip_frontend && npm run dev",
-    "agent": "cd pip_frontend && python3 closepulse_agent.py --ws ws://127.0.0.1:8000 --ext EXT_FIXED_ID --loopback 'BlackHole 2ch' --lang de"
+    "agent": "cd pip_frontend && python3 closepulse_agent.py --ws ws://127.0.0.1:8000 --ext EXT_FIXED_ID --mic 'MacBook Pro-Mikrofon' --lang de"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

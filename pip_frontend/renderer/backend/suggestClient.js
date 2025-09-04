@@ -1,12 +1,17 @@
 // src/backend/suggestClient.js
 
+function toWsBase(u) {
+    if (!u) return '';
+    return u.replace(/^http(s?):\/\//, 'ws$1://').replace(/\/$/, '');
+}
+
 export function connectSuggestions(wsBase, ext, onSuggestions, onDots) {
     if (!wsBase) return;
-    const wsBaseWS = wsBase.replace(/^http(s?):\/\//, 'ws$1://').replace(/\/$/, '');
-    const url = `${wsBaseWS}/ws/transcript?ext=${encodeURIComponent(ext || 'default')}`;
+    const url = `${toWsBase(wsBase)}/ws/transcript?ext=${encodeURIComponent(ext || 'default')}`;
     const ws = new WebSocket(url);
 
-    ws.onopen = () => console.log('[Renderer] suggest WS open', url);
+    ws.onopen = () => {
+    };
     ws.onmessage = (evt) => {
         try {
             const data = JSON.parse(evt.data || '{}');
@@ -14,45 +19,95 @@ export function connectSuggestions(wsBase, ext, onSuggestions, onDots) {
             const list = Array.isArray(data.suggestions) ? data.suggestions : [];
             const [s1, s2, s3] = list;
             onSuggestions?.({s1, s2, s3, trafficLight});
-        } catch (e) {
-            console.error('[Renderer] suggest parse error', e);
+            onDots?.(trafficLight);
+        } catch {
         }
     };
-    ws.onclose = (evt) => console.log('[Renderer] suggest WS closed', evt?.code, evt?.reason);
-    ws.onerror = (e) => console.error('[Renderer] suggest WS error', e);
+    ws.onclose = () => {
+    };
+    ws.onerror = () => {
+    };
 
     return ws;
 }
 
-export function connectSuggestionsWithRetry(wsBase, ext, onSuggestions, {maxRetries = 10} = {}) {
+export function connectSuggestionsWithRetry(wsBase, ext, onSuggestions, {
+    maxRetries = 10,
+    baseDelay = 500,
+    maxDelay = 8000,
+    onDots
+} = {}) {
     if (!wsBase) return () => {
     };
     let attempt = 0;
-    let ws;
+    let ws = null;
+    let disposed = false;
 
-    const open = () => {
+    function delayFor(n) {
+        const d = Math.min(baseDelay * Math.pow(2, Math.max(0, n - 1)), maxDelay);
+        const j = Math.floor(Math.random() * 250);
+        return d + j;
+    }
+
+    function open() {
+        if (disposed) return;
         attempt++;
-        ws = connectSuggestions(wsBase, ext, onSuggestions);
+        ws = connectSuggestions(wsBase, ext, onSuggestions, onDots);
         if (!ws) return;
 
         let opened = false;
 
-        const origOpen = ws.onopen;
+        const onopen = ws.onopen;
         ws.onopen = (evt) => {
             opened = true;
-            origOpen?.(evt);
+            attempt = 0;
+            onopen?.(evt);
         };
 
-        const origClose = ws.onclose;
+        const onclose = ws.onclose;
         ws.onclose = (evt) => {
-            origClose?.(evt);
-            if (!opened && attempt < maxRetries) {
-                const backoff = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
-                setTimeout(open, backoff);
+            onclose?.(evt);
+            if (disposed) return;
+            const code = evt?.code;
+            const clean = code === 1000;
+            if (attempt >= maxRetries) return;
+            if (!clean || !opened) {
+                setTimeout(open, delayFor(attempt));
+            } else {
+                setTimeout(open, delayFor(1));
             }
         };
-    };
+
+        const onerror = ws.onerror;
+        ws.onerror = (e) => {
+            onerror?.(e);
+        };
+    }
+
+    function handleOnline() {
+        if (!ws || ws.readyState === WebSocket.CLOSED) {
+            if (attempt < maxRetries && !disposed) setTimeout(open, delayFor(attempt || 1));
+        }
+    }
 
     open();
-    return () => ws && ws.close();
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('online', handleOnline);
+        document.addEventListener('visibilitychange', () => {
+            if (!disposed && document.visibilityState === 'visible') handleOnline();
+        });
+    }
+
+    return () => {
+        disposed = true;
+        try {
+            window.removeEventListener('online', handleOnline);
+        } catch {
+        }
+        try {
+            if (ws && ws.readyState <= WebSocket.OPEN) ws.close();
+        } catch {
+        }
+    };
 }

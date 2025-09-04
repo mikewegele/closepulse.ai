@@ -1,4 +1,3 @@
-// index.js
 import {el} from "./state.js";
 import {initTheme} from "./ui/theme.js";
 import {initToolbar} from "./ui/toolbar.js";
@@ -19,7 +18,7 @@ function setDot(on) {
     const dot = document.getElementById('dot');
     if (dot) dot.classList.toggle('on', !!on);
     if (on !== prevAgentOn) {
-        log(on ? 'agent:on' : 'agent:off'); // nur bei Zustandswechsel
+        log(on ? 'agent:on' : 'agent:off');
         prevAgentOn = on;
     }
 }
@@ -31,17 +30,63 @@ function setSuggestions({s1, s2, s3, trafficLight}) {
     setDotColor(trafficLight.response);
 }
 
+function findBySubstr(cands, available) {
+    const L = (available || []).map(s => (s || '').toLowerCase());
+    for (const c of cands) {
+        const x = (c || '').toLowerCase();
+        const hit = L.find(s => s.includes(x));
+        if (hit) return available[L.indexOf(hit)];
+    }
+    return null;
+}
+
+async function pickInputDevices() {
+    const platform = await window.electronAPI.getPlatform();
+    const dev = await window.electronAPI.agentList().catch(() => ({}));
+    const inputs = dev?.inputs || [];
+
+    const loopbackMac = ['CP MultiOutput', 'BlackHole 2ch', 'BlackHole', 'Loopback', 'Soundflower (2ch)'];
+    const loopbackWin = ['CABLE Output', 'VB-Audio Cable', 'VoiceMeeter Output', 'VoiceMeeter Aux Output', 'Stereo Mix'];
+    const micMac = ['MacBook Pro-Mikrofon', 'MacBook-Mikrofon', 'Built-in Microphone', 'Internal Microphone'];
+    const micWin = ['Microphone', 'Mikrofon', 'Headset Microphone', 'USB Microphone'];
+
+    const loopback = platform === 'darwin'
+        ? findBySubstr(loopbackMac, inputs)
+        : platform === 'win32'
+            ? findBySubstr(loopbackWin, inputs)
+            : null;
+
+    const mic = platform === 'darwin'
+        ? findBySubstr(micMac, inputs)
+        : platform === 'win32'
+            ? findBySubstr(micWin, inputs)
+            : null;
+
+    return {platform, loopback, mic};
+}
+
+function pickLang() {
+    const n = (navigator.language || 'de').toLowerCase();
+    if (n.startsWith('de')) return 'de';
+    if (n.startsWith('en')) return 'en';
+    if (n.startsWith('fr')) return 'fr';
+    if (n.startsWith('es')) return 'es';
+    return 'de';
+}
+
 async function ensureAgentOn(timeoutMs = 10000) {
-    // Agent (falls nötig) starten
+    const {loopback, mic} = await pickInputDevices();
+    const lang = pickLang();
+
     await autoStartAgentProc({
         ws: WS,
         ext: EXT,
-        lang: 'de',
-        loopback: 'BlackHole 2ch'
+        lang,
+        loopback: loopback || undefined,
+        mic: loopback ? undefined : (mic || undefined)
     }).then(() => log('agent:start:ok'))
         .catch(e => log(`agent:start:err ${e}`));
 
-    // Warten bis agentStatus === true
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         try {
@@ -57,23 +102,16 @@ async function ensureAgentOn(timeoutMs = 10000) {
 
 async function boot() {
     log('boot');
-
     try {
         await ensureAgentOn();
     } catch (e) {
         log(`agent:timeout ${e?.message || e}`);
-        // Du kannst hier ggf. trotzdem einen Retry für den WS versuchen.
     }
-
-    // Jetzt – und erst jetzt – den Suggest-WS öffnen
-    // connectSuggestions(WS, EXT, setSuggestions);
-    // Falls du lieber robust mit Retry willst:
     connectSuggestionsWithRetry(WS, EXT, setSuggestions, {maxRetries: 10});
 }
 
 boot();
 
-// Optional: leichtes Status-Polling, aber ohne Spam
 async function pollStatus() {
     try {
         const ok = await window.electronAPI.agentStatus();

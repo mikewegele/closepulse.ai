@@ -24,6 +24,8 @@ if (!gotLock) {
 
 let agentProc = null;
 let agentStarting = false;
+let quitting = false;
+let stoppingPromise = null;
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -56,31 +58,25 @@ function resolveAgentCommand() {
 
 function killProcessTree(p) {
     if (!p || !p.pid) return;
-    try {
-        if (process.platform !== 'win32') {
-            try {
-                process.kill(-p.pid, 'SIGTERM');
-            } catch {
-            }
-            setTimeout(() => {
-                try {
-                    process.kill(-p.pid, 'SIGKILL');
-                } catch {
-                }
-            }, 800);
-        } else {
-            try {
-                p.kill('SIGTERM');
-            } catch {
-            }
-            setTimeout(() => {
-                try {
-                    p.kill('SIGKILL');
-                } catch {
-                }
-            }, 800);
+
+    if (process.platform === 'win32') {
+        const {spawn} = require('child_process');
+        try {
+            spawn('taskkill', ['/PID', String(p.pid), '/T', '/F'], {stdio: 'ignore'}).on('exit', () => {
+            });
+        } catch {
         }
-    } catch {
+    } else {
+        try {
+            process.kill(-p.pid, 'SIGTERM');
+        } catch {
+        }
+        setTimeout(() => {
+            try {
+                process.kill(-p.pid, 'SIGKILL');
+            } catch {
+            }
+        }, 1000);
     }
 }
 
@@ -150,12 +146,16 @@ async function startAgent({ws, ext, mic, spk, loopback, lang}) {
         if (mic) full.push('--mic', mic);
         if (loopback) full.push('--loopback', loopback);
         if (lang) full.push('--lang', lang);
-        const env = {...process.env};
+
+        const env = {...process.env, PYTHONUNBUFFERED: '1'};
+
         agentProc = spawn(cmd, full, {
             stdio: ['ignore', 'pipe', 'pipe'],
             env,
             detached: process.platform !== 'win32',
+            windowsHide: true,
         });
+
         agentProc.stdout.on('data', (d) => console.log('[agent]', d.toString().trim()));
         agentProc.stderr.on('data', (d) => console.error('[agent-err]', d.toString().trim()));
         agentProc.once('error', (err) => console.error('[agent] spawn error', err));
@@ -170,20 +170,35 @@ async function startAgent({ws, ext, mic, spk, loopback, lang}) {
 }
 
 function stopAgent() {
-    if (!agentProc) return true;
+    if (!agentProc) return Promise.resolve(true);
     const p = agentProc;
     agentProc = null;
+
     return new Promise((resolve) => {
-        let resolved = false;
-        const done = () => {
-            if (!resolved) {
-                resolved = true;
+        let done = false;
+        const finish = () => {
+            if (!done) {
+                done = true;
                 resolve(true);
             }
         };
-        p.once('exit', done);
+
+        p.once('exit', finish);
+        p.once('close', finish);
+
+        try {
+            p.stdout?.removeAllListeners();
+            p.stderr?.removeAllListeners();
+        } catch {
+        }
+        try {
+            p.unref?.();
+        } catch {
+        }
+
         killProcessTree(p);
-        setTimeout(done, 1500);
+
+        setTimeout(finish, 3000);
     });
 }
 
@@ -233,6 +248,19 @@ ipcMain.handle('agent:list', async () => {
 ipcMain.handle('agent:status', async () => agentStatus());
 ipcMain.handle('env:platform', async () => process.platform);
 
+async function gracefulAppQuit(appExitCode = 0) {
+    if (quitting) return;
+    quitting = true;
+    try {
+        if (agentProc) {
+            stoppingPromise = stopAgent();
+            await stoppingPromise;
+        }
+    } catch {
+    }
+    app.exit(appExitCode);
+}
+
 function setupSignalHandlers() {
     const shutdown = async () => {
         try {
@@ -247,12 +275,6 @@ function setupSignalHandlers() {
         console.error('[main] uncaught', e);
         shutdown();
     });
-    process.on('exit', () => {
-        try {
-            stopAgent();
-        } catch {
-        }
-    });
 }
 
 app.whenReady().then(async () => {
@@ -263,7 +285,6 @@ app.whenReady().then(async () => {
         } catch (e) {
             console.error('[audio-setup] failed', e);
         }
-        // Optional: beim Fokus nochmal sicherstellen (z. B. nach Headset-Wechsel)
         app.on('browser-window-focus', async () => {
             try {
                 await ensureAudioSetup();
@@ -274,25 +295,15 @@ app.whenReady().then(async () => {
     createWindow();
 });
 
-app.on('window-all-closed', () => {
-    try {
-        stopAgent();
-    } catch {
+app.on('before-quit', (e) => {
+    if (agentProc && !quitting) {
+        e.preventDefault();
+        gracefulAppQuit(0);
     }
+});
+app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
-app.on('before-quit', () => {
-    try {
-        stopAgent();
-    } catch {
-    }
-});
-app.on('will-quit', () => {
-    try {
-        stopAgent();
-    } catch {
-    }
 });

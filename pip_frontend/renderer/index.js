@@ -2,7 +2,6 @@
 import {el} from "./state.js";
 import {initTheme} from "./ui/theme.js";
 import {initToolbar} from "./ui/toolbar.js";
-import {sendUserText} from "./backend/api.js";
 import {autoStartAgentProc} from "./audio/autostart_agentproc.js";
 import {connectSuggestionsWithRetry} from "./backend/suggestClient.js";
 import {log} from "./logger.js";
@@ -10,15 +9,6 @@ import {setDotColor} from "./ui/dot.js";
 
 initTheme();
 initToolbar();
-
-[el.s1, el.s2, el.s3].forEach(btn => {
-    if (!btn) return;
-    btn.onclick = () => {
-        const t = (btn.textContent || '').trim();
-        if (t) sendUserText(t);
-        log(`picked "${t.slice(0, 60)}"`);
-    };
-});
 
 const WS = (window.__API_BASE || '').replace(/^http/, 'ws');
 const EXT = window.__CALL_ID || 'EXT_FIXED_ID';

@@ -71,7 +71,7 @@ async def ws_transcript(ws: WebSocket):
             role = data.get("role")
             text = (data.get("text") or "").strip()
 
-            if role == "agent" and text:
+            if role == "customer" and text:
                 t0 = time.perf_counter()
                 async with _lock(ext):
                     sug = await make_suggestions(text)

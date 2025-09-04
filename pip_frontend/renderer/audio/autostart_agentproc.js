@@ -1,7 +1,7 @@
 // renderer/audio/autostart_agentproc.js
 import {log} from "../logger.js";
 
-export async function autoStartAgentProc({ws, ext}) {
+export async function autoStartAgentProc({ws, ext, lang = 'de'}) {
     const plat = await window.electronAPI.getPlatform();
     const info = await window.electronAPI.agentList();
 
@@ -22,7 +22,7 @@ export async function autoStartAgentProc({ws, ext}) {
     const rx = {
         loopback: [/blackhole/i, /stereo mix/i, /vb[- ]?cable/i, /monitor/i],
         micGood: [/headset/i, /jabra/i, /plantronics/i, /airpods/i, /bose/i, /shure/i, /rode/i, /yeti/i, /built[- ]?in/i, /macbook.*microphone/i],
-        spkGood: [/headset/i, /jabra/i, /plantronics/i, /airpods/i, /bose/i, /sony|wh[- ]?\d{3,}/i, /speaker/i]
+        spkGood: [/headset/i, /jabra/i, /plantronics/i, /airpods/i, /bose/i, /sony|wh[- ]?\d{3,}/i, /speaker/i],
     };
 
     const pick = (list, prefs = [], exclude = []) => {
@@ -35,10 +35,19 @@ export async function autoStartAgentProc({ws, ext}) {
         return f || list[0] || "";
     };
 
-    const mic = pick(inputs, rx.micGood, rx.loopback);
-    const spk = pick(outputs, rx.spkGood, []);
     const loopback = inputs.find(s => rx.loopback.some(r => r.test(s || ""))) || "";
+    const mic = pick(inputs, rx.micGood, rx.loopback);
+    const spk = pick(outputs, rx.spkGood, []); // wird unten eh nicht gesendet
 
     log(`devices mic="${mic}" loop="${loopback}" spk="${spk}" plat=${plat}`);
-    await window.electronAPI.agentStart({ws, ext, mic, spk, loopback});
+
+    const cfg = {ws, ext, lang};
+    if (loopback) {
+        cfg.loopback = loopback;
+    } else if (mic) {
+        cfg.mic = mic;
+    }
+
+    // spk im STT-only nicht nötig
+    await window.electronAPI.agentStart(cfg);
 }

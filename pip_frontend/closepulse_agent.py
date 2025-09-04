@@ -220,6 +220,7 @@ async def consume_transcripts(role: str, ws, backend_ws, stop_evt: asyncio.Event
     Liest alle Events vom Realtime-WS, sammelt deltas und sendet bei 'completed'
     das fertige Transkript ans Backend (role: 'agent' oder 'customer').
     """
+
     partial = {}
     if ws is None:
         return

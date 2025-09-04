@@ -43,8 +43,12 @@ function setSuggestions({s1, s2, s3, trafficLight}) {
 
 async function ensureAgentOn(timeoutMs = 10000) {
     // Agent (falls nötig) starten
-    await autoStartAgentProc({ws: WS, ext: EXT, lang: 'de'})
-        .then(() => log('agent:start:ok'))
+    await autoStartAgentProc({
+        ws: WS,
+        ext: EXT,
+        lang: 'de',
+        loopback: 'BlackHole 2ch'
+    }).then(() => log('agent:start:ok'))
         .catch(e => log(`agent:start:err ${e}`));
 
     // Warten bis agentStatus === true

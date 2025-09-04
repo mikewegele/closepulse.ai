@@ -4,12 +4,10 @@ export function connectSuggestions(wsBase, ext, onSuggestions, onDots) {
     if (!wsBase) return;
     const wsBaseWS = wsBase.replace(/^http(s?):\/\//, 'ws$1://').replace(/\/$/, '');
     const url = `${wsBaseWS}/ws/transcript?ext=${encodeURIComponent(ext || 'default')}`;
-    console.log('[Renderer] WS URL:', url);
     const ws = new WebSocket(url);
 
     ws.onopen = () => console.log('[Renderer] suggest WS open', url);
     ws.onmessage = (evt) => {
-        console.log("[Renderer] suggest WS message:", evt.data);
         try {
             const data = JSON.parse(evt.data || '{}');
             const trafficLight = data.trafficLight;

@@ -1,4 +1,4 @@
-# backend/app.py (Auszug)
+# backend/app.py
 import asyncio
 import json
 import logging
@@ -39,10 +39,11 @@ def _lock(ext: str) -> asyncio.Lock:
 
 async def _broadcast(ext: str, payload: dict):
     dead = []
+    msg = json.dumps(payload, ensure_ascii=False)
     for ws in list(_room(ext)):
         try:
-            await ws.send_text(json.dumps(payload, ensure_ascii=False))
-        except:
+            await ws.send_text(msg)
+        except Exception:
             dead.append(ws)
     for ws in dead:
         _room(ext).discard(ws)
@@ -57,15 +58,14 @@ def health():
 async def ws_transcript(ws: WebSocket):
     ext = ws.query_params.get("ext") or "default"
     await ws.accept()
-    _room(ext).add(ws)  # <— HINZUFÜGEN!
+    _room(ext).add(ws)
     log.info("[B] transcript:connect ext=%s", ext)
     try:
-        while True:
-            raw = await ws.receive_text()
+        async for raw in ws.iter_text():
             log.info("[B] transcript:receive raw=%s", raw)
             try:
                 data = json.loads(raw)
-            except:
+            except Exception:
                 continue
 
             role = data.get("role")
@@ -83,4 +83,4 @@ async def ws_transcript(ws: WebSocket):
     except WebSocketDisconnect:
         log.info("[B] transcript:disconnect ext=%s", ext)
     finally:
-        _room(ext).discard(ws)  # <— AUFRÄUMEN!
+        _room(ext).discard(ws)

@@ -5,19 +5,9 @@
   "author": "closepulse.ai Team",
   "license": "MIT",
   "scripts": {
-    "dev": "cd pip_frontend && cross-env PYTHON=../.venv/bin/python3 dotenv -e .env -- electron .",
-    "live": "cd live_backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload\n",
-    "macos": "cd pip_frontend && CP_WS_URL=\"ws://127.0.0.1:8000/local/stream\" \\\nCP_EXT_ID=\"DEMO42\" \\                                    \nCP_MIC_NAME=\"MacBook Pro-Mikrofon\" \\\nCP_SPK_NAME=\"BlackHole 2ch\" \\\npython3 closepulse_agent.py",
-    "backend": "docker compose up -d api",
-    "docker": "docker compose build --no-cache api\ndocker compose up -d api",
-    "frontend": "cd pip_frontend && npm run dev",
-    "frontend:build": "cd pip_frontend && npm run build",
-    "frontend:preview": "cd pip_frontend && npm run preview",
-    "backend:docker": "docker compose up api",
-    "tunnel": "cloudflared tunnel run closepulse",
-    "tunnel:docker": "docker run -it --rm --network host cloudflare/cloudflared:latest \\\n  tunnel --url http://localhost:8000\n",
-    "backend:docker:stop": "docker compose down",
-    "app": "concurrently -n fe,tunnel -c yellow,blue \"npm run frontend\" \"npm run tunnel\""
+    "app": "concurrently -n fe,be -c yellow,blue \"npm run backend\" \"npm run client\"",
+    "backend": "uvicorn backend.app:app --reload --port 8000",
+    "client": "cd pip_frontend && npm run dev"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

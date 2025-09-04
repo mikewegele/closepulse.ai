@@ -1,3 +1,4 @@
+# backend/suggestions.py
 import asyncio
 import json
 import logging
@@ -54,7 +55,6 @@ async def make_suggestions(user_text: str) -> Dict[str, Any]:
     )
 
     raw = getattr(res, "final_output", "") or "{}"
-    print(raw)
     try:
         data = json.loads(raw)
     except Exception:
@@ -65,8 +65,9 @@ async def make_suggestions(user_text: str) -> Dict[str, Any]:
     if tl not in {"green", "yellow", "red"}:
         tl = "yellow"
 
-    log.info(f"Suggestions for {tl}: {data}")
     dt = time.perf_counter() - t0
+    log.info("Suggestions for %s in %.1fms: %s", tl, dt * 1000, data)
+
     return {
         "suggestions": data.get("suggestions", []),
         "trafficLight": {"response": tl},
